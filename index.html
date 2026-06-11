@@ -1,0 +1,826 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#16201c" />
+<title>Plumage — North American Bird ID</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;0,9..144,800;1,9..144,500&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --ink:#16201c; --ink2:#1f2b26; --parch:#f3ecdd; --parch2:#e9dfc9;
+    --line:#cdbf9e; --text:#23302a; --faint:#6f7a6f; --accent:#e0533d;
+    --accent2:#3f7d6e; --gold:#d9a441; --good:#2f8f5b; --bad:#c0392b;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--ink);
+    background-image:radial-gradient(1200px 500px at 80% -10%, var(--ink2) 0%, var(--ink) 60%);
+    color:var(--parch); font-family:Inter,system-ui,sans-serif;
+    min-height:100vh; min-height:100dvh;
+  }
+  #app{max-width:560px; margin:0 auto; padding:0 16px calc(40px + env(safe-area-inset-bottom)); }
+  button{font-family:inherit;}
+  .mono{font-family:'IBM Plex Mono',monospace;}
+  .fraunces{font-family:Fraunces,serif;}
+  a{color:var(--accent2);}
+  @keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+  @media (prefers-reduced-motion: reduce){*{transition:none!important;animation:none!important;}}
+</style>
+</head>
+<body>
+<div id="app"></div>
+
+<script>
+// ===========================================================================
+// PLUMAGE — North American bird identification puzzle. Single file, no build.
+// Photos + notes load live from public, key-free, CORS-enabled sources with
+// graceful fallback: Wikipedia REST -> Wikipedia Action API -> iNaturalist.
+//
+// Focus: a MANUAL wheel you roll yourself (like binoculars). No clock. The
+// picture starts fully blurred; sharpen it as much as you need. The clearer
+// you make it before guessing, the fewer points the bird is worth.
+// ===========================================================================
+
+const BIRD_DATA = [
+  {name:"Snow Goose",sci:"Anser caerulescens",family:"Ducks, Geese & Waterfowl",famSci:"Anatidae",wiki:"Snow_goose"},
+  {name:"Greater White-fronted Goose",sci:"Anser albifrons",family:"Ducks, Geese & Waterfowl",famSci:"Anatidae",wiki:"Greater_white-fronted_goose"},
+  {name:"Canada Goose",sci:"Branta canadensis",family:"Ducks, Geese & Waterfowl",famSci:"Anatidae",wiki:"Canada_goose"},
+  {name:"Cackling Goose",sci:"Branta hutchinsii",family:"Ducks, Geese & Waterfowl",famSci:"Anatidae",wiki:"Cackling_goose"},
+  {name:"Brant",sci:"Branta bernicla",family:"Ducks, Geese & Waterfowl",famSci:"Anatidae",wiki:"Brant_(goose)"},
+  {name:"Mute Swan",sci:"Cygnus olor",family:"Ducks, Geese & Waterfowl",famSci:"Anatidae",wiki:"Mute_swan"},
+  {name:"Trumpeter Swan",sci:"Cygnus buccinator",family:"Ducks, Geese & Waterfowl",famSci:"Anatidae",wiki:"Trumpeter_swan"},
+  {name:"Tundra Swan",sci:"Cygnus columbianus",family:"Ducks, Geese & Waterfowl",famSci:"Anatidae",wiki:"Tundra_swan"},
+  {name:"Wood Duck",sci:"Aix sponsa",family:"Ducks, Geese & Waterfowl",famSci:"Anatidae",wiki:"Wood_duck"},
+  {name:"Blue-winged Teal",sci:"Spatula discors",family:"Ducks, Geese & Waterfowl",famSci:"Anatidae",wiki:"Blue-winged_teal"},
+  {name:"Cinnamon Teal",sci:"Spatula cyanoptera",family:"Ducks, Geese & Waterfowl",famSci:"Anatidae",wiki:"Cinnamon_teal"},
+  {name:"Northern Shoveler",sci:"Spatula clypeata",family:"Ducks, Geese & Waterfowl",famSci:"Anatidae",wiki:"Northern_shoveler"},
+  {name:"Gadwall",sci:"Mareca strepera",family:"Ducks, Geese & Waterfowl",famSci:"Anatidae",wiki:"Gadwall"},
+  {name:"American Wigeon",sci:"Mareca americana",family:"Ducks, Geese & Waterfowl",famSci:"Anatidae",wiki:"American_wigeon"},
+  {name:"Mallard",sci:"Anas platyrhynchos",family:"Ducks, Geese & Waterfowl",famSci:"Anatidae",wiki:"Mallard"},
+  {name:"American Black Duck",sci:"Anas rubripes",family:"Ducks, Geese & Waterfowl",famSci:"Anatidae",wiki:"American_black_duck"},
+  {name:"Northern Pintail",sci:"Anas acuta",family:"Ducks, Geese & Waterfowl",famSci:"Anatidae",wiki:"Northern_pintail"},
+  {name:"Green-winged Teal",sci:"Anas crecca",family:"Ducks, Geese & Waterfowl",famSci:"Anatidae",wiki:"Eurasian_teal"},
+  {name:"Canvasback",sci:"Aythya valisineria",family:"Ducks, Geese & Waterfowl",famSci:"Anatidae",wiki:"Canvasback"},
+  {name:"Redhead",sci:"Aythya americana",family:"Ducks, Geese & Waterfowl",famSci:"Anatidae",wiki:"Redhead_(bird)"},
+  {name:"Ring-necked Duck",sci:"Aythya collaris",family:"Ducks, Geese & Waterfowl",famSci:"Anatidae",wiki:"Ring-necked_duck"},
+  {name:"Greater Scaup",sci:"Aythya marila",family:"Ducks, Geese & Waterfowl",famSci:"Anatidae",wiki:"Greater_scaup"},
+  {name:"Lesser Scaup",sci:"Aythya affinis",family:"Ducks, Geese & Waterfowl",famSci:"Anatidae",wiki:"Lesser_scaup"},
+  {name:"Surf Scoter",sci:"Melanitta perspicillata",family:"Ducks, Geese & Waterfowl",famSci:"Anatidae",wiki:"Surf_scoter"},
+  {name:"White-winged Scoter",sci:"Melanitta deglandi",family:"Ducks, Geese & Waterfowl",famSci:"Anatidae",wiki:"White-winged_scoter"},
+  {name:"Black Scoter",sci:"Melanitta americana",family:"Ducks, Geese & Waterfowl",famSci:"Anatidae",wiki:"Black_scoter"},
+  {name:"Long-tailed Duck",sci:"Clangula hyemalis",family:"Ducks, Geese & Waterfowl",famSci:"Anatidae",wiki:"Long-tailed_duck"},
+  {name:"Bufflehead",sci:"Bucephala albeola",family:"Ducks, Geese & Waterfowl",famSci:"Anatidae",wiki:"Bufflehead"},
+  {name:"Common Goldeneye",sci:"Bucephala clangula",family:"Ducks, Geese & Waterfowl",famSci:"Anatidae",wiki:"Common_goldeneye"},
+  {name:"Hooded Merganser",sci:"Lophodytes cucullatus",family:"Ducks, Geese & Waterfowl",famSci:"Anatidae",wiki:"Hooded_merganser"},
+  {name:"Common Merganser",sci:"Mergus merganser",family:"Ducks, Geese & Waterfowl",famSci:"Anatidae",wiki:"Common_merganser"},
+  {name:"Red-breasted Merganser",sci:"Mergus serrator",family:"Ducks, Geese & Waterfowl",famSci:"Anatidae",wiki:"Red-breasted_merganser"},
+  {name:"Ruddy Duck",sci:"Oxyura jamaicensis",family:"Ducks, Geese & Waterfowl",famSci:"Anatidae",wiki:"Ruddy_duck"},
+  {name:"Ring-necked Pheasant",sci:"Phasianus colchicus",family:"Grouse, Quail & Allies",famSci:"Phasianidae",wiki:"Common_pheasant"},
+  {name:"Ruffed Grouse",sci:"Bonasa umbellus",family:"Grouse, Quail & Allies",famSci:"Phasianidae",wiki:"Ruffed_grouse"},
+  {name:"Greater Sage-Grouse",sci:"Centrocercus urophasianus",family:"Grouse, Quail & Allies",famSci:"Phasianidae",wiki:"Greater_sage-grouse"},
+  {name:"Spruce Grouse",sci:"Canachites canadensis",family:"Grouse, Quail & Allies",famSci:"Phasianidae",wiki:"Spruce_grouse"},
+  {name:"Sharp-tailed Grouse",sci:"Tympanuchus phasianellus",family:"Grouse, Quail & Allies",famSci:"Phasianidae",wiki:"Sharp-tailed_grouse"},
+  {name:"Greater Prairie-Chicken",sci:"Tympanuchus cupido",family:"Grouse, Quail & Allies",famSci:"Phasianidae",wiki:"Greater_prairie_chicken"},
+  {name:"Wild Turkey",sci:"Meleagris gallopavo",family:"Grouse, Quail & Allies",famSci:"Phasianidae",wiki:"Wild_turkey"},
+  {name:"Northern Bobwhite",sci:"Colinus virginianus",family:"Grouse, Quail & Allies",famSci:"Odontophoridae",wiki:"Northern_bobwhite"},
+  {name:"California Quail",sci:"Callipepla californica",family:"Grouse, Quail & Allies",famSci:"Odontophoridae",wiki:"California_quail"},
+  {name:"Gambel's Quail",sci:"Callipepla gambelii",family:"Grouse, Quail & Allies",famSci:"Odontophoridae",wiki:"Gambel's_quail"},
+  {name:"Scaled Quail",sci:"Callipepla squamata",family:"Grouse, Quail & Allies",famSci:"Odontophoridae",wiki:"Scaled_quail"},
+  {name:"Mountain Quail",sci:"Oreortyx pictus",family:"Grouse, Quail & Allies",famSci:"Odontophoridae",wiki:"Mountain_quail"},
+  {name:"Pied-billed Grebe",sci:"Podilymbus podiceps",family:"Grebes",famSci:"Podicipedidae",wiki:"Pied-billed_grebe"},
+  {name:"Horned Grebe",sci:"Podiceps auritus",family:"Grebes",famSci:"Podicipedidae",wiki:"Horned_grebe"},
+  {name:"Red-necked Grebe",sci:"Podiceps grisegena",family:"Grebes",famSci:"Podicipedidae",wiki:"Red-necked_grebe"},
+  {name:"Eared Grebe",sci:"Podiceps nigricollis",family:"Grebes",famSci:"Podicipedidae",wiki:"Black-necked_grebe"},
+  {name:"Western Grebe",sci:"Aechmophorus occidentalis",family:"Grebes",famSci:"Podicipedidae",wiki:"Western_grebe"},
+  {name:"Clark's Grebe",sci:"Aechmophorus clarkii",family:"Grebes",famSci:"Podicipedidae",wiki:"Clark's_grebe"},
+  {name:"Rock Pigeon",sci:"Columba livia",family:"Pigeons & Doves",famSci:"Columbidae",wiki:"Rock_dove"},
+  {name:"Band-tailed Pigeon",sci:"Patagioenas fasciata",family:"Pigeons & Doves",famSci:"Columbidae",wiki:"Band-tailed_pigeon"},
+  {name:"Eurasian Collared-Dove",sci:"Streptopelia decaocto",family:"Pigeons & Doves",famSci:"Columbidae",wiki:"Eurasian_collared_dove"},
+  {name:"White-winged Dove",sci:"Zenaida asiatica",family:"Pigeons & Doves",famSci:"Columbidae",wiki:"White-winged_dove"},
+  {name:"Mourning Dove",sci:"Zenaida macroura",family:"Pigeons & Doves",famSci:"Columbidae",wiki:"Mourning_dove"},
+  {name:"Common Ground Dove",sci:"Columbina passerina",family:"Pigeons & Doves",famSci:"Columbidae",wiki:"Common_ground_dove"},
+  {name:"Inca Dove",sci:"Columbina inca",family:"Pigeons & Doves",famSci:"Columbidae",wiki:"Inca_dove"},
+  {name:"Yellow-billed Cuckoo",sci:"Coccyzus americanus",family:"Cuckoos & Roadrunners",famSci:"Cuculidae",wiki:"Yellow-billed_cuckoo"},
+  {name:"Black-billed Cuckoo",sci:"Coccyzus erythropthalmus",family:"Cuckoos & Roadrunners",famSci:"Cuculidae",wiki:"Black-billed_cuckoo"},
+  {name:"Greater Roadrunner",sci:"Geococcyx californianus",family:"Cuckoos & Roadrunners",famSci:"Cuculidae",wiki:"Greater_roadrunner"},
+  {name:"Common Nighthawk",sci:"Chordeiles minor",family:"Nightjars",famSci:"Caprimulgidae",wiki:"Common_nighthawk"},
+  {name:"Common Poorwill",sci:"Phalaenoptilus nuttallii",family:"Nightjars",famSci:"Caprimulgidae",wiki:"Common_poorwill"},
+  {name:"Eastern Whip-poor-will",sci:"Antrostomus vociferus",family:"Nightjars",famSci:"Caprimulgidae",wiki:"Eastern_whip-poor-will"},
+  {name:"Chuck-will's-widow",sci:"Antrostomus carolinensis",family:"Nightjars",famSci:"Caprimulgidae",wiki:"Chuck-will's-widow"},
+  {name:"Chimney Swift",sci:"Chaetura pelagica",family:"Swifts",famSci:"Apodidae",wiki:"Chimney_swift"},
+  {name:"Vaux's Swift",sci:"Chaetura vauxi",family:"Swifts",famSci:"Apodidae",wiki:"Vaux's_swift"},
+  {name:"White-throated Swift",sci:"Aeronautes saxatalis",family:"Swifts",famSci:"Apodidae",wiki:"White-throated_swift"},
+  {name:"Ruby-throated Hummingbird",sci:"Archilochus colubris",family:"Hummingbirds",famSci:"Trochilidae",wiki:"Ruby-throated_hummingbird"},
+  {name:"Black-chinned Hummingbird",sci:"Archilochus alexandri",family:"Hummingbirds",famSci:"Trochilidae",wiki:"Black-chinned_hummingbird"},
+  {name:"Anna's Hummingbird",sci:"Calypte anna",family:"Hummingbirds",famSci:"Trochilidae",wiki:"Anna's_hummingbird"},
+  {name:"Costa's Hummingbird",sci:"Calypte costae",family:"Hummingbirds",famSci:"Trochilidae",wiki:"Costa's_hummingbird"},
+  {name:"Broad-tailed Hummingbird",sci:"Selasphorus platycercus",family:"Hummingbirds",famSci:"Trochilidae",wiki:"Broad-tailed_hummingbird"},
+  {name:"Rufous Hummingbird",sci:"Selasphorus rufus",family:"Hummingbirds",famSci:"Trochilidae",wiki:"Rufous_hummingbird"},
+  {name:"Allen's Hummingbird",sci:"Selasphorus sasin",family:"Hummingbirds",famSci:"Trochilidae",wiki:"Allen's_hummingbird"},
+  {name:"Calliope Hummingbird",sci:"Selasphorus calliope",family:"Hummingbirds",famSci:"Trochilidae",wiki:"Calliope_hummingbird"},
+  {name:"Broad-billed Hummingbird",sci:"Cynanthus latirostris",family:"Hummingbirds",famSci:"Trochilidae",wiki:"Broad-billed_hummingbird"},
+  {name:"Rivoli's Hummingbird",sci:"Eugenes fulgens",family:"Hummingbirds",famSci:"Trochilidae",wiki:"Rivoli's_hummingbird"},
+  {name:"Clapper Rail",sci:"Rallus crepitans",family:"Rails, Gallinules & Coots",famSci:"Rallidae",wiki:"Clapper_rail"},
+  {name:"Virginia Rail",sci:"Rallus limicola",family:"Rails, Gallinules & Coots",famSci:"Rallidae",wiki:"Virginia_rail"},
+  {name:"Sora",sci:"Porzana carolina",family:"Rails, Gallinules & Coots",famSci:"Rallidae",wiki:"Sora_(bird)"},
+  {name:"Common Gallinule",sci:"Gallinula galeata",family:"Rails, Gallinules & Coots",famSci:"Rallidae",wiki:"Common_gallinule"},
+  {name:"American Coot",sci:"Fulica americana",family:"Rails, Gallinules & Coots",famSci:"Rallidae",wiki:"American_coot"},
+  {name:"Purple Gallinule",sci:"Porphyrio martinica",family:"Rails, Gallinules & Coots",famSci:"Rallidae",wiki:"American_purple_gallinule"},
+  {name:"Sandhill Crane",sci:"Antigone canadensis",family:"Cranes",famSci:"Gruidae",wiki:"Sandhill_crane"},
+  {name:"Whooping Crane",sci:"Grus americana",family:"Cranes",famSci:"Gruidae",wiki:"Whooping_crane"},
+  {name:"Black-bellied Plover",sci:"Pluvialis squatarola",family:"Plovers",famSci:"Charadriidae",wiki:"Grey_plover"},
+  {name:"American Golden-Plover",sci:"Pluvialis dominica",family:"Plovers",famSci:"Charadriidae",wiki:"American_golden_plover"},
+  {name:"Killdeer",sci:"Charadrius vociferus",family:"Plovers",famSci:"Charadriidae",wiki:"Killdeer"},
+  {name:"Semipalmated Plover",sci:"Charadrius semipalmatus",family:"Plovers",famSci:"Charadriidae",wiki:"Semipalmated_plover"},
+  {name:"Piping Plover",sci:"Charadrius melodus",family:"Plovers",famSci:"Charadriidae",wiki:"Piping_plover"},
+  {name:"Snowy Plover",sci:"Charadrius nivosus",family:"Plovers",famSci:"Charadriidae",wiki:"Snowy_plover"},
+  {name:"Black-necked Stilt",sci:"Himantopus mexicanus",family:"Stilts & Avocets",famSci:"Recurvirostridae",wiki:"Black-necked_stilt"},
+  {name:"American Avocet",sci:"Recurvirostra americana",family:"Stilts & Avocets",famSci:"Recurvirostridae",wiki:"American_avocet"},
+  {name:"Spotted Sandpiper",sci:"Actitis macularius",family:"Sandpipers & Allies",famSci:"Scolopacidae",wiki:"Spotted_sandpiper"},
+  {name:"Solitary Sandpiper",sci:"Tringa solitaria",family:"Sandpipers & Allies",famSci:"Scolopacidae",wiki:"Solitary_sandpiper"},
+  {name:"Greater Yellowlegs",sci:"Tringa melanoleuca",family:"Sandpipers & Allies",famSci:"Scolopacidae",wiki:"Greater_yellowlegs"},
+  {name:"Lesser Yellowlegs",sci:"Tringa flavipes",family:"Sandpipers & Allies",famSci:"Scolopacidae",wiki:"Lesser_yellowlegs"},
+  {name:"Willet",sci:"Tringa semipalmata",family:"Sandpipers & Allies",famSci:"Scolopacidae",wiki:"Willet"},
+  {name:"Whimbrel",sci:"Numenius phaeopus",family:"Sandpipers & Allies",famSci:"Scolopacidae",wiki:"Whimbrel"},
+  {name:"Long-billed Curlew",sci:"Numenius americanus",family:"Sandpipers & Allies",famSci:"Scolopacidae",wiki:"Long-billed_curlew"},
+  {name:"Marbled Godwit",sci:"Limosa fedoa",family:"Sandpipers & Allies",famSci:"Scolopacidae",wiki:"Marbled_godwit"},
+  {name:"Ruddy Turnstone",sci:"Arenaria interpres",family:"Sandpipers & Allies",famSci:"Scolopacidae",wiki:"Ruddy_turnstone"},
+  {name:"Sanderling",sci:"Calidris alba",family:"Sandpipers & Allies",famSci:"Scolopacidae",wiki:"Sanderling"},
+  {name:"Dunlin",sci:"Calidris alpina",family:"Sandpipers & Allies",famSci:"Scolopacidae",wiki:"Dunlin"},
+  {name:"Least Sandpiper",sci:"Calidris minutilla",family:"Sandpipers & Allies",famSci:"Scolopacidae",wiki:"Least_sandpiper"},
+  {name:"Semipalmated Sandpiper",sci:"Calidris pusilla",family:"Sandpipers & Allies",famSci:"Scolopacidae",wiki:"Semipalmated_sandpiper"},
+  {name:"Western Sandpiper",sci:"Calidris mauri",family:"Sandpipers & Allies",famSci:"Scolopacidae",wiki:"Western_sandpiper"},
+  {name:"Pectoral Sandpiper",sci:"Calidris melanotos",family:"Sandpipers & Allies",famSci:"Scolopacidae",wiki:"Pectoral_sandpiper"},
+  {name:"Short-billed Dowitcher",sci:"Limnodromus griseus",family:"Sandpipers & Allies",famSci:"Scolopacidae",wiki:"Short-billed_dowitcher"},
+  {name:"Long-billed Dowitcher",sci:"Limnodromus scolopaceus",family:"Sandpipers & Allies",famSci:"Scolopacidae",wiki:"Long-billed_dowitcher"},
+  {name:"Wilson's Snipe",sci:"Gallinago delicata",family:"Sandpipers & Allies",famSci:"Scolopacidae",wiki:"Wilson's_snipe"},
+  {name:"American Woodcock",sci:"Scolopax minor",family:"Sandpipers & Allies",famSci:"Scolopacidae",wiki:"American_woodcock"},
+  {name:"Wilson's Phalarope",sci:"Phalaropus tricolor",family:"Sandpipers & Allies",famSci:"Scolopacidae",wiki:"Wilson's_phalarope"},
+  {name:"Red-necked Phalarope",sci:"Phalaropus lobatus",family:"Sandpipers & Allies",famSci:"Scolopacidae",wiki:"Red-necked_phalarope"},
+  {name:"Bonaparte's Gull",sci:"Chroicocephalus philadelphia",family:"Gulls, Terns & Skimmers",famSci:"Laridae",wiki:"Bonaparte's_gull"},
+  {name:"Laughing Gull",sci:"Leucophaeus atricilla",family:"Gulls, Terns & Skimmers",famSci:"Laridae",wiki:"Laughing_gull"},
+  {name:"Franklin's Gull",sci:"Leucophaeus pipixcan",family:"Gulls, Terns & Skimmers",famSci:"Laridae",wiki:"Franklin's_gull"},
+  {name:"Ring-billed Gull",sci:"Larus delawarensis",family:"Gulls, Terns & Skimmers",famSci:"Laridae",wiki:"Ring-billed_gull"},
+  {name:"Herring Gull",sci:"Larus argentatus",family:"Gulls, Terns & Skimmers",famSci:"Laridae",wiki:"American_herring_gull"},
+  {name:"California Gull",sci:"Larus californicus",family:"Gulls, Terns & Skimmers",famSci:"Laridae",wiki:"California_gull"},
+  {name:"Great Black-backed Gull",sci:"Larus marinus",family:"Gulls, Terns & Skimmers",famSci:"Laridae",wiki:"Great_black-backed_gull"},
+  {name:"Glaucous-winged Gull",sci:"Larus glaucescens",family:"Gulls, Terns & Skimmers",famSci:"Laridae",wiki:"Glaucous-winged_gull"},
+  {name:"Western Gull",sci:"Larus occidentalis",family:"Gulls, Terns & Skimmers",famSci:"Laridae",wiki:"Western_gull"},
+  {name:"Least Tern",sci:"Sternula antillarum",family:"Gulls, Terns & Skimmers",famSci:"Laridae",wiki:"Least_tern"},
+  {name:"Caspian Tern",sci:"Hydroprogne caspia",family:"Gulls, Terns & Skimmers",famSci:"Laridae",wiki:"Caspian_tern"},
+  {name:"Black Tern",sci:"Chlidonias niger",family:"Gulls, Terns & Skimmers",famSci:"Laridae",wiki:"Black_tern"},
+  {name:"Common Tern",sci:"Sterna hirundo",family:"Gulls, Terns & Skimmers",famSci:"Laridae",wiki:"Common_tern"},
+  {name:"Forster's Tern",sci:"Sterna forsteri",family:"Gulls, Terns & Skimmers",famSci:"Laridae",wiki:"Forster's_tern"},
+  {name:"Royal Tern",sci:"Thalasseus maximus",family:"Gulls, Terns & Skimmers",famSci:"Laridae",wiki:"Royal_tern"},
+  {name:"Black Skimmer",sci:"Rynchops niger",family:"Gulls, Terns & Skimmers",famSci:"Laridae",wiki:"Black_skimmer"},
+  {name:"Red-throated Loon",sci:"Gavia stellata",family:"Loons",famSci:"Gaviidae",wiki:"Red-throated_loon"},
+  {name:"Common Loon",sci:"Gavia immer",family:"Loons",famSci:"Gaviidae",wiki:"Common_loon"},
+  {name:"Pacific Loon",sci:"Gavia pacifica",family:"Loons",famSci:"Gaviidae",wiki:"Pacific_loon"},
+  {name:"Double-crested Cormorant",sci:"Nannopterum auritum",family:"Cormorants",famSci:"Phalacrocoracidae",wiki:"Double-crested_cormorant"},
+  {name:"Neotropic Cormorant",sci:"Nannopterum brasilianum",family:"Cormorants",famSci:"Phalacrocoracidae",wiki:"Neotropic_cormorant"},
+  {name:"Brandt's Cormorant",sci:"Urile penicillatus",family:"Cormorants",famSci:"Phalacrocoracidae",wiki:"Brandt's_cormorant"},
+  {name:"American White Pelican",sci:"Pelecanus erythrorhynchos",family:"Pelicans",famSci:"Pelecanidae",wiki:"American_white_pelican"},
+  {name:"Brown Pelican",sci:"Pelecanus occidentalis",family:"Pelicans",famSci:"Pelecanidae",wiki:"Brown_pelican"},
+  {name:"American Bittern",sci:"Botaurus lentiginosus",family:"Herons, Egrets & Bitterns",famSci:"Ardeidae",wiki:"American_bittern"},
+  {name:"Least Bittern",sci:"Ixobrychus exilis",family:"Herons, Egrets & Bitterns",famSci:"Ardeidae",wiki:"Least_bittern"},
+  {name:"Great Blue Heron",sci:"Ardea herodias",family:"Herons, Egrets & Bitterns",famSci:"Ardeidae",wiki:"Great_blue_heron"},
+  {name:"Great Egret",sci:"Ardea alba",family:"Herons, Egrets & Bitterns",famSci:"Ardeidae",wiki:"Great_egret"},
+  {name:"Snowy Egret",sci:"Egretta thula",family:"Herons, Egrets & Bitterns",famSci:"Ardeidae",wiki:"Snowy_egret"},
+  {name:"Little Blue Heron",sci:"Egretta caerulea",family:"Herons, Egrets & Bitterns",famSci:"Ardeidae",wiki:"Little_blue_heron"},
+  {name:"Tricolored Heron",sci:"Egretta tricolor",family:"Herons, Egrets & Bitterns",famSci:"Ardeidae",wiki:"Tricolored_heron"},
+  {name:"Reddish Egret",sci:"Egretta rufescens",family:"Herons, Egrets & Bitterns",famSci:"Ardeidae",wiki:"Reddish_egret"},
+  {name:"Cattle Egret",sci:"Bubulcus ibis",family:"Herons, Egrets & Bitterns",famSci:"Ardeidae",wiki:"Western_cattle_egret"},
+  {name:"Green Heron",sci:"Butorides virescens",family:"Herons, Egrets & Bitterns",famSci:"Ardeidae",wiki:"Green_heron"},
+  {name:"Black-crowned Night Heron",sci:"Nycticorax nycticorax",family:"Herons, Egrets & Bitterns",famSci:"Ardeidae",wiki:"Black-crowned_night_heron"},
+  {name:"Yellow-crowned Night Heron",sci:"Nyctanassa violacea",family:"Herons, Egrets & Bitterns",famSci:"Ardeidae",wiki:"Yellow-crowned_night_heron"},
+  {name:"White Ibis",sci:"Eudocimus albus",family:"Ibises & Spoonbills",famSci:"Threskiornithidae",wiki:"American_white_ibis"},
+  {name:"Glossy Ibis",sci:"Plegadis falcinellus",family:"Ibises & Spoonbills",famSci:"Threskiornithidae",wiki:"Glossy_ibis"},
+  {name:"White-faced Ibis",sci:"Plegadis chihi",family:"Ibises & Spoonbills",famSci:"Threskiornithidae",wiki:"White-faced_ibis"},
+  {name:"Roseate Spoonbill",sci:"Platalea ajaja",family:"Ibises & Spoonbills",famSci:"Threskiornithidae",wiki:"Roseate_spoonbill"},
+  {name:"Black Vulture",sci:"Coragyps atratus",family:"New World Vultures",famSci:"Cathartidae",wiki:"Black_vulture"},
+  {name:"Turkey Vulture",sci:"Cathartes aura",family:"New World Vultures",famSci:"Cathartidae",wiki:"Turkey_vulture"},
+  {name:"California Condor",sci:"Gymnogyps californianus",family:"New World Vultures",famSci:"Cathartidae",wiki:"California_condor"},
+  {name:"Osprey",sci:"Pandion haliaetus",family:"Hawks, Eagles & Kites",famSci:"Pandionidae",wiki:"Osprey"},
+  {name:"White-tailed Kite",sci:"Elanus leucurus",family:"Hawks, Eagles & Kites",famSci:"Accipitridae",wiki:"White-tailed_kite"},
+  {name:"Swallow-tailed Kite",sci:"Elanoides forficatus",family:"Hawks, Eagles & Kites",famSci:"Accipitridae",wiki:"Swallow-tailed_kite"},
+  {name:"Mississippi Kite",sci:"Ictinia mississippiensis",family:"Hawks, Eagles & Kites",famSci:"Accipitridae",wiki:"Mississippi_kite"},
+  {name:"Northern Harrier",sci:"Circus hudsonius",family:"Hawks, Eagles & Kites",famSci:"Accipitridae",wiki:"Northern_harrier"},
+  {name:"Sharp-shinned Hawk",sci:"Accipiter striatus",family:"Hawks, Eagles & Kites",famSci:"Accipitridae",wiki:"Sharp-shinned_hawk"},
+  {name:"Cooper's Hawk",sci:"Astur cooperii",family:"Hawks, Eagles & Kites",famSci:"Accipitridae",wiki:"Cooper's_hawk"},
+  {name:"Northern Goshawk",sci:"Astur atricapillus",family:"Hawks, Eagles & Kites",famSci:"Accipitridae",wiki:"American_goshawk"},
+  {name:"Bald Eagle",sci:"Haliaeetus leucocephalus",family:"Hawks, Eagles & Kites",famSci:"Accipitridae",wiki:"Bald_eagle"},
+  {name:"Golden Eagle",sci:"Aquila chrysaetos",family:"Hawks, Eagles & Kites",famSci:"Accipitridae",wiki:"Golden_eagle"},
+  {name:"Red-shouldered Hawk",sci:"Buteo lineatus",family:"Hawks, Eagles & Kites",famSci:"Accipitridae",wiki:"Red-shouldered_hawk"},
+  {name:"Broad-winged Hawk",sci:"Buteo platypterus",family:"Hawks, Eagles & Kites",famSci:"Accipitridae",wiki:"Broad-winged_hawk"},
+  {name:"Swainson's Hawk",sci:"Buteo swainsoni",family:"Hawks, Eagles & Kites",famSci:"Accipitridae",wiki:"Swainson's_hawk"},
+  {name:"Red-tailed Hawk",sci:"Buteo jamaicensis",family:"Hawks, Eagles & Kites",famSci:"Accipitridae",wiki:"Red-tailed_hawk"},
+  {name:"Ferruginous Hawk",sci:"Buteo regalis",family:"Hawks, Eagles & Kites",famSci:"Accipitridae",wiki:"Ferruginous_hawk"},
+  {name:"Rough-legged Hawk",sci:"Buteo lagopus",family:"Hawks, Eagles & Kites",famSci:"Accipitridae",wiki:"Rough-legged_buzzard"},
+  {name:"Barn Owl",sci:"Tyto alba",family:"Owls",famSci:"Tytonidae",wiki:"Barn_owl"},
+  {name:"Eastern Screech-Owl",sci:"Megascops asio",family:"Owls",famSci:"Strigidae",wiki:"Eastern_screech_owl"},
+  {name:"Western Screech-Owl",sci:"Megascops kennicottii",family:"Owls",famSci:"Strigidae",wiki:"Western_screech_owl"},
+  {name:"Great Horned Owl",sci:"Bubo virginianus",family:"Owls",famSci:"Strigidae",wiki:"Great_horned_owl"},
+  {name:"Snowy Owl",sci:"Bubo scandiacus",family:"Owls",famSci:"Strigidae",wiki:"Snowy_owl"},
+  {name:"Northern Pygmy-Owl",sci:"Glaucidium gnoma",family:"Owls",famSci:"Strigidae",wiki:"Northern_pygmy_owl"},
+  {name:"Burrowing Owl",sci:"Athene cunicularia",family:"Owls",famSci:"Strigidae",wiki:"Burrowing_owl"},
+  {name:"Barred Owl",sci:"Strix varia",family:"Owls",famSci:"Strigidae",wiki:"Barred_owl"},
+  {name:"Great Gray Owl",sci:"Strix nebulosa",family:"Owls",famSci:"Strigidae",wiki:"Great_grey_owl"},
+  {name:"Long-eared Owl",sci:"Asio otus",family:"Owls",famSci:"Strigidae",wiki:"Long-eared_owl"},
+  {name:"Short-eared Owl",sci:"Asio flammeus",family:"Owls",famSci:"Strigidae",wiki:"Short-eared_owl"},
+  {name:"Northern Saw-whet Owl",sci:"Aegolius acadicus",family:"Owls",famSci:"Strigidae",wiki:"Northern_saw-whet_owl"},
+  {name:"Belted Kingfisher",sci:"Megaceryle alcyon",family:"Kingfishers",famSci:"Alcedinidae",wiki:"Belted_kingfisher"},
+  {name:"Green Kingfisher",sci:"Chloroceryle americana",family:"Kingfishers",famSci:"Alcedinidae",wiki:"Green_kingfisher"},
+  {name:"Red-headed Woodpecker",sci:"Melanerpes erythrocephalus",family:"Woodpeckers",famSci:"Picidae",wiki:"Red-headed_woodpecker"},
+  {name:"Acorn Woodpecker",sci:"Melanerpes formicivorus",family:"Woodpeckers",famSci:"Picidae",wiki:"Acorn_woodpecker"},
+  {name:"Gila Woodpecker",sci:"Melanerpes uropygialis",family:"Woodpeckers",famSci:"Picidae",wiki:"Gila_woodpecker"},
+  {name:"Red-bellied Woodpecker",sci:"Melanerpes carolinus",family:"Woodpeckers",famSci:"Picidae",wiki:"Red-bellied_woodpecker"},
+  {name:"Williamson's Sapsucker",sci:"Sphyrapicus thyroideus",family:"Woodpeckers",famSci:"Picidae",wiki:"Williamson's_sapsucker"},
+  {name:"Yellow-bellied Sapsucker",sci:"Sphyrapicus varius",family:"Woodpeckers",famSci:"Picidae",wiki:"Yellow-bellied_sapsucker"},
+  {name:"Red-naped Sapsucker",sci:"Sphyrapicus nuchalis",family:"Woodpeckers",famSci:"Picidae",wiki:"Red-naped_sapsucker"},
+  {name:"Downy Woodpecker",sci:"Dryobates pubescens",family:"Woodpeckers",famSci:"Picidae",wiki:"Downy_woodpecker"},
+  {name:"Hairy Woodpecker",sci:"Leuconotopicus villosus",family:"Woodpeckers",famSci:"Picidae",wiki:"Hairy_woodpecker"},
+  {name:"Ladder-backed Woodpecker",sci:"Dryobates scalaris",family:"Woodpeckers",famSci:"Picidae",wiki:"Ladder-backed_woodpecker"},
+  {name:"Nuttall's Woodpecker",sci:"Dryobates nuttallii",family:"Woodpeckers",famSci:"Picidae",wiki:"Nuttall's_woodpecker"},
+  {name:"Northern Flicker",sci:"Colaptes auratus",family:"Woodpeckers",famSci:"Picidae",wiki:"Northern_flicker"},
+  {name:"Gilded Flicker",sci:"Colaptes chrysoides",family:"Woodpeckers",famSci:"Picidae",wiki:"Gilded_flicker"},
+  {name:"Pileated Woodpecker",sci:"Dryocopus pileatus",family:"Woodpeckers",famSci:"Picidae",wiki:"Pileated_woodpecker"},
+  {name:"Lewis's Woodpecker",sci:"Melanerpes lewis",family:"Woodpeckers",famSci:"Picidae",wiki:"Lewis's_woodpecker"},
+  {name:"White-headed Woodpecker",sci:"Dryobates albolarvatus",family:"Woodpeckers",famSci:"Picidae",wiki:"White-headed_woodpecker"},
+  {name:"American Kestrel",sci:"Falco sparverius",family:"Falcons",famSci:"Falconidae",wiki:"American_kestrel"},
+  {name:"Merlin",sci:"Falco columbarius",family:"Falcons",famSci:"Falconidae",wiki:"Merlin_(bird)"},
+  {name:"Peregrine Falcon",sci:"Falco peregrinus",family:"Falcons",famSci:"Falconidae",wiki:"Peregrine_falcon"},
+  {name:"Prairie Falcon",sci:"Falco mexicanus",family:"Falcons",famSci:"Falconidae",wiki:"Prairie_falcon"},
+  {name:"Gyrfalcon",sci:"Falco rusticolus",family:"Falcons",famSci:"Falconidae",wiki:"Gyrfalcon"},
+  {name:"Crested Caracara",sci:"Caracara plancus",family:"Falcons",famSci:"Falconidae",wiki:"Crested_caracara"},
+  {name:"Olive-sided Flycatcher",sci:"Contopus cooperi",family:"Tyrant Flycatchers",famSci:"Tyrannidae",wiki:"Olive-sided_flycatcher"},
+  {name:"Western Wood-Pewee",sci:"Contopus sordidulus",family:"Tyrant Flycatchers",famSci:"Tyrannidae",wiki:"Western_wood_pewee"},
+  {name:"Eastern Wood-Pewee",sci:"Contopus virens",family:"Tyrant Flycatchers",famSci:"Tyrannidae",wiki:"Eastern_wood_pewee"},
+  {name:"Willow Flycatcher",sci:"Empidonax traillii",family:"Tyrant Flycatchers",famSci:"Tyrannidae",wiki:"Willow_flycatcher"},
+  {name:"Least Flycatcher",sci:"Empidonax minimus",family:"Tyrant Flycatchers",famSci:"Tyrannidae",wiki:"Least_flycatcher"},
+  {name:"Pacific-slope Flycatcher",sci:"Empidonax difficilis",family:"Tyrant Flycatchers",famSci:"Tyrannidae",wiki:"Pacific-slope_flycatcher"},
+  {name:"Black Phoebe",sci:"Sayornis nigricans",family:"Tyrant Flycatchers",famSci:"Tyrannidae",wiki:"Black_phoebe"},
+  {name:"Eastern Phoebe",sci:"Sayornis phoebe",family:"Tyrant Flycatchers",famSci:"Tyrannidae",wiki:"Eastern_phoebe"},
+  {name:"Say's Phoebe",sci:"Sayornis saya",family:"Tyrant Flycatchers",famSci:"Tyrannidae",wiki:"Say's_phoebe"},
+  {name:"Vermilion Flycatcher",sci:"Pyrocephalus obscurus",family:"Tyrant Flycatchers",famSci:"Tyrannidae",wiki:"Vermilion_flycatcher"},
+  {name:"Ash-throated Flycatcher",sci:"Myiarchus cinerascens",family:"Tyrant Flycatchers",famSci:"Tyrannidae",wiki:"Ash-throated_flycatcher"},
+  {name:"Great Crested Flycatcher",sci:"Myiarchus crinitus",family:"Tyrant Flycatchers",famSci:"Tyrannidae",wiki:"Great_crested_flycatcher"},
+  {name:"Cassin's Kingbird",sci:"Tyrannus vociferans",family:"Tyrant Flycatchers",famSci:"Tyrannidae",wiki:"Cassin's_kingbird"},
+  {name:"Western Kingbird",sci:"Tyrannus verticalis",family:"Tyrant Flycatchers",famSci:"Tyrannidae",wiki:"Western_kingbird"},
+  {name:"Eastern Kingbird",sci:"Tyrannus tyrannus",family:"Tyrant Flycatchers",famSci:"Tyrannidae",wiki:"Eastern_kingbird"},
+  {name:"Scissor-tailed Flycatcher",sci:"Tyrannus forficatus",family:"Tyrant Flycatchers",famSci:"Tyrannidae",wiki:"Scissor-tailed_flycatcher"},
+  {name:"Loggerhead Shrike",sci:"Lanius ludovicianus",family:"Shrikes",famSci:"Laniidae",wiki:"Loggerhead_shrike"},
+  {name:"Northern Shrike",sci:"Lanius borealis",family:"Shrikes",famSci:"Laniidae",wiki:"Northern_shrike"},
+  {name:"White-eyed Vireo",sci:"Vireo griseus",family:"Vireos",famSci:"Vireonidae",wiki:"White-eyed_vireo"},
+  {name:"Bell's Vireo",sci:"Vireo bellii",family:"Vireos",famSci:"Vireonidae",wiki:"Bell's_vireo"},
+  {name:"Cassin's Vireo",sci:"Vireo cassinii",family:"Vireos",famSci:"Vireonidae",wiki:"Cassin's_vireo"},
+  {name:"Blue-headed Vireo",sci:"Vireo solitarius",family:"Vireos",famSci:"Vireonidae",wiki:"Blue-headed_vireo"},
+  {name:"Warbling Vireo",sci:"Vireo gilvus",family:"Vireos",famSci:"Vireonidae",wiki:"Warbling_vireo"},
+  {name:"Red-eyed Vireo",sci:"Vireo olivaceus",family:"Vireos",famSci:"Vireonidae",wiki:"Red-eyed_vireo"},
+  {name:"Canada Jay",sci:"Perisoreus canadensis",family:"Jays, Crows & Magpies",famSci:"Corvidae",wiki:"Canada_jay"},
+  {name:"Steller's Jay",sci:"Cyanocitta stelleri",family:"Jays, Crows & Magpies",famSci:"Corvidae",wiki:"Steller's_jay"},
+  {name:"Blue Jay",sci:"Cyanocitta cristata",family:"Jays, Crows & Magpies",famSci:"Corvidae",wiki:"Blue_jay"},
+  {name:"California Scrub-Jay",sci:"Aphelocoma californica",family:"Jays, Crows & Magpies",famSci:"Corvidae",wiki:"California_scrub_jay"},
+  {name:"Woodhouse's Scrub-Jay",sci:"Aphelocoma woodhouseii",family:"Jays, Crows & Magpies",famSci:"Corvidae",wiki:"Woodhouse's_scrub_jay"},
+  {name:"Pinyon Jay",sci:"Gymnorhinus cyanocephalus",family:"Jays, Crows & Magpies",famSci:"Corvidae",wiki:"Pinyon_jay"},
+  {name:"Clark's Nutcracker",sci:"Nucifraga columbiana",family:"Jays, Crows & Magpies",famSci:"Corvidae",wiki:"Clark's_nutcracker"},
+  {name:"Black-billed Magpie",sci:"Pica hudsonia",family:"Jays, Crows & Magpies",famSci:"Corvidae",wiki:"Black-billed_magpie"},
+  {name:"Yellow-billed Magpie",sci:"Pica nuttalli",family:"Jays, Crows & Magpies",famSci:"Corvidae",wiki:"Yellow-billed_magpie"},
+  {name:"American Crow",sci:"Corvus brachyrhynchos",family:"Jays, Crows & Magpies",famSci:"Corvidae",wiki:"American_crow"},
+  {name:"Fish Crow",sci:"Corvus ossifragus",family:"Jays, Crows & Magpies",famSci:"Corvidae",wiki:"Fish_crow"},
+  {name:"Common Raven",sci:"Corvus corax",family:"Jays, Crows & Magpies",famSci:"Corvidae",wiki:"Common_raven"},
+  {name:"Chihuahuan Raven",sci:"Corvus cryptoleucus",family:"Jays, Crows & Magpies",famSci:"Corvidae",wiki:"Chihuahuan_raven"},
+  {name:"Carolina Chickadee",sci:"Poecile carolinensis",family:"Chickadees & Titmice",famSci:"Paridae",wiki:"Carolina_chickadee"},
+  {name:"Black-capped Chickadee",sci:"Poecile atricapillus",family:"Chickadees & Titmice",famSci:"Paridae",wiki:"Black-capped_chickadee"},
+  {name:"Mountain Chickadee",sci:"Poecile gambeli",family:"Chickadees & Titmice",famSci:"Paridae",wiki:"Mountain_chickadee"},
+  {name:"Chestnut-backed Chickadee",sci:"Poecile rufescens",family:"Chickadees & Titmice",famSci:"Paridae",wiki:"Chestnut-backed_chickadee"},
+  {name:"Boreal Chickadee",sci:"Poecile hudsonicus",family:"Chickadees & Titmice",famSci:"Paridae",wiki:"Boreal_chickadee"},
+  {name:"Bridled Titmouse",sci:"Baeolophus wollweberi",family:"Chickadees & Titmice",famSci:"Paridae",wiki:"Bridled_titmouse"},
+  {name:"Oak Titmouse",sci:"Baeolophus inornatus",family:"Chickadees & Titmice",famSci:"Paridae",wiki:"Oak_titmouse"},
+  {name:"Tufted Titmouse",sci:"Baeolophus bicolor",family:"Chickadees & Titmice",famSci:"Paridae",wiki:"Tufted_titmouse"},
+  {name:"Northern Rough-winged Swallow",sci:"Stelgidopteryx serripennis",family:"Swallows",famSci:"Hirundinidae",wiki:"Northern_rough-winged_swallow"},
+  {name:"Purple Martin",sci:"Progne subis",family:"Swallows",famSci:"Hirundinidae",wiki:"Purple_martin"},
+  {name:"Tree Swallow",sci:"Tachycineta bicolor",family:"Swallows",famSci:"Hirundinidae",wiki:"Tree_swallow"},
+  {name:"Violet-green Swallow",sci:"Tachycineta thalassina",family:"Swallows",famSci:"Hirundinidae",wiki:"Violet-green_swallow"},
+  {name:"Bank Swallow",sci:"Riparia riparia",family:"Swallows",famSci:"Hirundinidae",wiki:"Sand_martin"},
+  {name:"Barn Swallow",sci:"Hirundo rustica",family:"Swallows",famSci:"Hirundinidae",wiki:"Barn_swallow"},
+  {name:"Cliff Swallow",sci:"Petrochelidon pyrrhonota",family:"Swallows",famSci:"Hirundinidae",wiki:"American_cliff_swallow"},
+  {name:"Horned Lark",sci:"Eremophila alpestris",family:"Larks",famSci:"Alaudidae",wiki:"Horned_lark"},
+  {name:"Golden-crowned Kinglet",sci:"Regulus satrapa",family:"Kinglets",famSci:"Regulidae",wiki:"Golden-crowned_kinglet"},
+  {name:"Ruby-crowned Kinglet",sci:"Corthylio calendula",family:"Kinglets",famSci:"Regulidae",wiki:"Ruby-crowned_kinglet"},
+  {name:"Red-breasted Nuthatch",sci:"Sitta canadensis",family:"Nuthatches",famSci:"Sittidae",wiki:"Red-breasted_nuthatch"},
+  {name:"White-breasted Nuthatch",sci:"Sitta carolinensis",family:"Nuthatches",famSci:"Sittidae",wiki:"White-breasted_nuthatch"},
+  {name:"Pygmy Nuthatch",sci:"Sitta pygmaea",family:"Nuthatches",famSci:"Sittidae",wiki:"Pygmy_nuthatch"},
+  {name:"Brown-headed Nuthatch",sci:"Sitta pusilla",family:"Nuthatches",famSci:"Sittidae",wiki:"Brown-headed_nuthatch"},
+  {name:"Brown Creeper",sci:"Certhia americana",family:"Treecreepers",famSci:"Certhiidae",wiki:"Brown_creeper"},
+  {name:"Rock Wren",sci:"Salpinctes obsoletus",family:"Wrens",famSci:"Troglodytidae",wiki:"Rock_wren"},
+  {name:"Canyon Wren",sci:"Catherpes mexicanus",family:"Wrens",famSci:"Troglodytidae",wiki:"Canyon_wren"},
+  {name:"House Wren",sci:"Troglodytes aedon",family:"Wrens",famSci:"Troglodytidae",wiki:"House_wren"},
+  {name:"Winter Wren",sci:"Troglodytes hiemalis",family:"Wrens",famSci:"Troglodytidae",wiki:"Winter_wren"},
+  {name:"Marsh Wren",sci:"Cistothorus palustris",family:"Wrens",famSci:"Troglodytidae",wiki:"Marsh_wren"},
+  {name:"Carolina Wren",sci:"Thryothorus ludovicianus",family:"Wrens",famSci:"Troglodytidae",wiki:"Carolina_wren"},
+  {name:"Bewick's Wren",sci:"Thryomanes bewickii",family:"Wrens",famSci:"Troglodytidae",wiki:"Bewick's_wren"},
+  {name:"Cactus Wren",sci:"Campylorhynchus brunneicapillus",family:"Wrens",famSci:"Troglodytidae",wiki:"Cactus_wren"},
+  {name:"Blue-gray Gnatcatcher",sci:"Polioptila caerulea",family:"Gnatcatchers",famSci:"Polioptilidae",wiki:"Blue-gray_gnatcatcher"},
+  {name:"Eastern Bluebird",sci:"Sialia sialis",family:"Thrushes",famSci:"Turdidae",wiki:"Eastern_bluebird"},
+  {name:"Western Bluebird",sci:"Sialia mexicana",family:"Thrushes",famSci:"Turdidae",wiki:"Western_bluebird"},
+  {name:"Mountain Bluebird",sci:"Sialia currucoides",family:"Thrushes",famSci:"Turdidae",wiki:"Mountain_bluebird"},
+  {name:"Townsend's Solitaire",sci:"Myadestes townsendi",family:"Thrushes",famSci:"Turdidae",wiki:"Townsend's_solitaire"},
+  {name:"Veery",sci:"Catharus fuscescens",family:"Thrushes",famSci:"Turdidae",wiki:"Veery"},
+  {name:"Swainson's Thrush",sci:"Catharus ustulatus",family:"Thrushes",famSci:"Turdidae",wiki:"Swainson's_thrush"},
+  {name:"Hermit Thrush",sci:"Catharus guttatus",family:"Thrushes",famSci:"Turdidae",wiki:"Hermit_thrush"},
+  {name:"Wood Thrush",sci:"Hylocichla mustelina",family:"Thrushes",famSci:"Turdidae",wiki:"Wood_thrush"},
+  {name:"American Robin",sci:"Turdus migratorius",family:"Thrushes",famSci:"Turdidae",wiki:"American_robin"},
+  {name:"Varied Thrush",sci:"Ixoreus naevius",family:"Thrushes",famSci:"Turdidae",wiki:"Varied_thrush"},
+  {name:"Gray Catbird",sci:"Dumetella carolinensis",family:"Mockingbirds & Thrashers",famSci:"Mimidae",wiki:"Grey_catbird"},
+  {name:"Brown Thrasher",sci:"Toxostoma rufum",family:"Mockingbirds & Thrashers",famSci:"Mimidae",wiki:"Brown_thrasher"},
+  {name:"Curve-billed Thrasher",sci:"Toxostoma curvirostre",family:"Mockingbirds & Thrashers",famSci:"Mimidae",wiki:"Curve-billed_thrasher"},
+  {name:"California Thrasher",sci:"Toxostoma redivivum",family:"Mockingbirds & Thrashers",famSci:"Mimidae",wiki:"California_thrasher"},
+  {name:"Sage Thrasher",sci:"Oreoscoptes montanus",family:"Mockingbirds & Thrashers",famSci:"Mimidae",wiki:"Sage_thrasher"},
+  {name:"Northern Mockingbird",sci:"Mimus polyglottos",family:"Mockingbirds & Thrashers",famSci:"Mimidae",wiki:"Northern_mockingbird"},
+  {name:"European Starling",sci:"Sturnus vulgaris",family:"Starlings",famSci:"Sturnidae",wiki:"Common_starling"},
+  {name:"Cedar Waxwing",sci:"Bombycilla cedrorum",family:"Waxwings",famSci:"Bombycillidae",wiki:"Cedar_waxwing"},
+  {name:"Bohemian Waxwing",sci:"Bombycilla garrulus",family:"Waxwings",famSci:"Bombycillidae",wiki:"Bohemian_waxwing"},
+  {name:"House Sparrow",sci:"Passer domesticus",family:"Old World Sparrows",famSci:"Passeridae",wiki:"House_sparrow"},
+  {name:"American Pipit",sci:"Anthus rubescens",family:"Pipits",famSci:"Motacillidae",wiki:"Buff-bellied_pipit"},
+  {name:"Evening Grosbeak",sci:"Coccothraustes vespertinus",family:"Finches",famSci:"Fringillidae",wiki:"Evening_grosbeak"},
+  {name:"Pine Grosbeak",sci:"Pinicola enucleator",family:"Finches",famSci:"Fringillidae",wiki:"Pine_grosbeak"},
+  {name:"House Finch",sci:"Haemorhous mexicanus",family:"Finches",famSci:"Fringillidae",wiki:"House_finch"},
+  {name:"Purple Finch",sci:"Haemorhous purpureus",family:"Finches",famSci:"Fringillidae",wiki:"Purple_finch"},
+  {name:"Cassin's Finch",sci:"Haemorhous cassinii",family:"Finches",famSci:"Fringillidae",wiki:"Cassin's_finch"},
+  {name:"Red Crossbill",sci:"Loxia curvirostra",family:"Finches",famSci:"Fringillidae",wiki:"Red_crossbill"},
+  {name:"White-winged Crossbill",sci:"Loxia leucoptera",family:"Finches",famSci:"Fringillidae",wiki:"Two-barred_crossbill"},
+  {name:"Common Redpoll",sci:"Acanthis flammea",family:"Finches",famSci:"Fringillidae",wiki:"Common_redpoll"},
+  {name:"Pine Siskin",sci:"Spinus pinus",family:"Finches",famSci:"Fringillidae",wiki:"Pine_siskin"},
+  {name:"Lesser Goldfinch",sci:"Spinus psaltria",family:"Finches",famSci:"Fringillidae",wiki:"Lesser_goldfinch"},
+  {name:"American Goldfinch",sci:"Spinus tristis",family:"Finches",famSci:"Fringillidae",wiki:"American_goldfinch"},
+  {name:"Lapland Longspur",sci:"Calcarius lapponicus",family:"Longspurs",famSci:"Calcariidae",wiki:"Lapland_longspur"},
+  {name:"Chestnut-collared Longspur",sci:"Calcarius ornatus",family:"Longspurs",famSci:"Calcariidae",wiki:"Chestnut-collared_longspur"},
+  {name:"Snow Bunting",sci:"Plectrophenax nivalis",family:"Longspurs",famSci:"Calcariidae",wiki:"Snow_bunting"},
+  {name:"Rufous-crowned Sparrow",sci:"Aimophila ruficeps",family:"New World Sparrows",famSci:"Passerellidae",wiki:"Rufous-crowned_sparrow"},
+  {name:"American Tree Sparrow",sci:"Spizelloides arborea",family:"New World Sparrows",famSci:"Passerellidae",wiki:"American_tree_sparrow"},
+  {name:"Chipping Sparrow",sci:"Spizella passerina",family:"New World Sparrows",famSci:"Passerellidae",wiki:"Chipping_sparrow"},
+  {name:"Clay-colored Sparrow",sci:"Spizella pallida",family:"New World Sparrows",famSci:"Passerellidae",wiki:"Clay-colored_sparrow"},
+  {name:"Brewer's Sparrow",sci:"Spizella breweri",family:"New World Sparrows",famSci:"Passerellidae",wiki:"Brewer's_sparrow"},
+  {name:"Field Sparrow",sci:"Spizella pusilla",family:"New World Sparrows",famSci:"Passerellidae",wiki:"Field_sparrow"},
+  {name:"Lark Sparrow",sci:"Chondestes grammacus",family:"New World Sparrows",famSci:"Passerellidae",wiki:"Lark_sparrow"},
+  {name:"Black-throated Sparrow",sci:"Amphispiza bilineata",family:"New World Sparrows",famSci:"Passerellidae",wiki:"Black-throated_sparrow"},
+  {name:"Lark Bunting",sci:"Calamospiza melanocorys",family:"New World Sparrows",famSci:"Passerellidae",wiki:"Lark_bunting"},
+  {name:"Savannah Sparrow",sci:"Passerculus sandwichensis",family:"New World Sparrows",famSci:"Passerellidae",wiki:"Savannah_sparrow"},
+  {name:"Grasshopper Sparrow",sci:"Ammodramus savannarum",family:"New World Sparrows",famSci:"Passerellidae",wiki:"Grasshopper_sparrow"},
+  {name:"Fox Sparrow",sci:"Passerella iliaca",family:"New World Sparrows",famSci:"Passerellidae",wiki:"Fox_sparrow"},
+  {name:"Song Sparrow",sci:"Melospiza melodia",family:"New World Sparrows",famSci:"Passerellidae",wiki:"Song_sparrow"},
+  {name:"Lincoln's Sparrow",sci:"Melospiza lincolnii",family:"New World Sparrows",famSci:"Passerellidae",wiki:"Lincoln's_sparrow"},
+  {name:"Swamp Sparrow",sci:"Melospiza georgiana",family:"New World Sparrows",famSci:"Passerellidae",wiki:"Swamp_sparrow"},
+  {name:"White-throated Sparrow",sci:"Zonotrichia albicollis",family:"New World Sparrows",famSci:"Passerellidae",wiki:"White-throated_sparrow"},
+  {name:"White-crowned Sparrow",sci:"Zonotrichia leucophrys",family:"New World Sparrows",famSci:"Passerellidae",wiki:"White-crowned_sparrow"},
+  {name:"Golden-crowned Sparrow",sci:"Zonotrichia atricapilla",family:"New World Sparrows",famSci:"Passerellidae",wiki:"Golden-crowned_sparrow"},
+  {name:"Harris's Sparrow",sci:"Zonotrichia querula",family:"New World Sparrows",famSci:"Passerellidae",wiki:"Harris's_sparrow"},
+  {name:"Dark-eyed Junco",sci:"Junco hyemalis",family:"New World Sparrows",famSci:"Passerellidae",wiki:"Dark-eyed_junco"},
+  {name:"Spotted Towhee",sci:"Pipilo maculatus",family:"New World Sparrows",famSci:"Passerellidae",wiki:"Spotted_towhee"},
+  {name:"Eastern Towhee",sci:"Pipilo erythrophthalmus",family:"New World Sparrows",famSci:"Passerellidae",wiki:"Eastern_towhee"},
+  {name:"California Towhee",sci:"Melozone crissalis",family:"New World Sparrows",famSci:"Passerellidae",wiki:"California_towhee"},
+  {name:"Abert's Towhee",sci:"Melozone aberti",family:"New World Sparrows",famSci:"Passerellidae",wiki:"Abert's_towhee"},
+  {name:"Green-tailed Towhee",sci:"Pipilo chlorurus",family:"New World Sparrows",famSci:"Passerellidae",wiki:"Green-tailed_towhee"},
+  {name:"Yellow-breasted Chat",sci:"Icteria virens",family:"Blackbirds & Orioles",famSci:"Icteriidae",wiki:"Yellow-breasted_chat"},
+  {name:"Bobolink",sci:"Dolichonyx oryzivorus",family:"Blackbirds & Orioles",famSci:"Icteridae",wiki:"Bobolink"},
+  {name:"Red-winged Blackbird",sci:"Agelaius phoeniceus",family:"Blackbirds & Orioles",famSci:"Icteridae",wiki:"Red-winged_blackbird"},
+  {name:"Eastern Meadowlark",sci:"Sturnella magna",family:"Blackbirds & Orioles",famSci:"Icteridae",wiki:"Eastern_meadowlark"},
+  {name:"Western Meadowlark",sci:"Sturnella neglecta",family:"Blackbirds & Orioles",famSci:"Icteridae",wiki:"Western_meadowlark"},
+  {name:"Yellow-headed Blackbird",sci:"Xanthocephalus xanthocephalus",family:"Blackbirds & Orioles",famSci:"Icteridae",wiki:"Yellow-headed_blackbird"},
+  {name:"Brewer's Blackbird",sci:"Euphagus cyanocephalus",family:"Blackbirds & Orioles",famSci:"Icteridae",wiki:"Brewer's_blackbird"},
+  {name:"Rusty Blackbird",sci:"Euphagus carolinus",family:"Blackbirds & Orioles",famSci:"Icteridae",wiki:"Rusty_blackbird"},
+  {name:"Common Grackle",sci:"Quiscalus quiscula",family:"Blackbirds & Orioles",famSci:"Icteridae",wiki:"Common_grackle"},
+  {name:"Great-tailed Grackle",sci:"Quiscalus mexicanus",family:"Blackbirds & Orioles",famSci:"Icteridae",wiki:"Great-tailed_grackle"},
+  {name:"Boat-tailed Grackle",sci:"Quiscalus major",family:"Blackbirds & Orioles",famSci:"Icteridae",wiki:"Boat-tailed_grackle"},
+  {name:"Brown-headed Cowbird",sci:"Molothrus ater",family:"Blackbirds & Orioles",famSci:"Icteridae",wiki:"Brown-headed_cowbird"},
+  {name:"Orchard Oriole",sci:"Icterus spurius",family:"Blackbirds & Orioles",famSci:"Icteridae",wiki:"Orchard_oriole"},
+  {name:"Hooded Oriole",sci:"Icterus cucullatus",family:"Blackbirds & Orioles",famSci:"Icteridae",wiki:"Hooded_oriole"},
+  {name:"Bullock's Oriole",sci:"Icterus bullockii",family:"Blackbirds & Orioles",famSci:"Icteridae",wiki:"Bullock's_oriole"},
+  {name:"Baltimore Oriole",sci:"Icterus galbula",family:"Blackbirds & Orioles",famSci:"Icteridae",wiki:"Baltimore_oriole"},
+  {name:"Scott's Oriole",sci:"Icterus parisorum",family:"Blackbirds & Orioles",famSci:"Icteridae",wiki:"Scott's_oriole"},
+  {name:"Ovenbird",sci:"Seiurus aurocapilla",family:"New World Warblers",famSci:"Parulidae",wiki:"Ovenbird"},
+  {name:"Worm-eating Warbler",sci:"Helmitheros vermivorum",family:"New World Warblers",famSci:"Parulidae",wiki:"Worm-eating_warbler"},
+  {name:"Louisiana Waterthrush",sci:"Parkesia motacilla",family:"New World Warblers",famSci:"Parulidae",wiki:"Louisiana_waterthrush"},
+  {name:"Northern Waterthrush",sci:"Parkesia noveboracensis",family:"New World Warblers",famSci:"Parulidae",wiki:"Northern_waterthrush"},
+  {name:"Golden-winged Warbler",sci:"Vermivora chrysoptera",family:"New World Warblers",famSci:"Parulidae",wiki:"Golden-winged_warbler"},
+  {name:"Blue-winged Warbler",sci:"Vermivora cyanoptera",family:"New World Warblers",famSci:"Parulidae",wiki:"Blue-winged_warbler"},
+  {name:"Black-and-white Warbler",sci:"Mniotilta varia",family:"New World Warblers",famSci:"Parulidae",wiki:"Black-and-white_warbler"},
+  {name:"Prothonotary Warbler",sci:"Protonotaria citrea",family:"New World Warblers",famSci:"Parulidae",wiki:"Prothonotary_warbler"},
+  {name:"Tennessee Warbler",sci:"Leiothlypis peregrina",family:"New World Warblers",famSci:"Parulidae",wiki:"Tennessee_warbler"},
+  {name:"Orange-crowned Warbler",sci:"Leiothlypis celata",family:"New World Warblers",famSci:"Parulidae",wiki:"Orange-crowned_warbler"},
+  {name:"Nashville Warbler",sci:"Leiothlypis ruficapilla",family:"New World Warblers",famSci:"Parulidae",wiki:"Nashville_warbler"},
+  {name:"MacGillivray's Warbler",sci:"Geothlypis tolmiei",family:"New World Warblers",famSci:"Parulidae",wiki:"MacGillivray's_warbler"},
+  {name:"Mourning Warbler",sci:"Geothlypis philadelphia",family:"New World Warblers",famSci:"Parulidae",wiki:"Mourning_warbler"},
+  {name:"Kentucky Warbler",sci:"Geothlypis formosa",family:"New World Warblers",famSci:"Parulidae",wiki:"Kentucky_warbler"},
+  {name:"Common Yellowthroat",sci:"Geothlypis trichas",family:"New World Warblers",famSci:"Parulidae",wiki:"Common_yellowthroat"},
+  {name:"Hooded Warbler",sci:"Setophaga citrina",family:"New World Warblers",famSci:"Parulidae",wiki:"Hooded_warbler"},
+  {name:"American Redstart",sci:"Setophaga ruticilla",family:"New World Warblers",famSci:"Parulidae",wiki:"American_redstart"},
+  {name:"Cape May Warbler",sci:"Setophaga tigrina",family:"New World Warblers",famSci:"Parulidae",wiki:"Cape_May_warbler"},
+  {name:"Cerulean Warbler",sci:"Setophaga cerulea",family:"New World Warblers",famSci:"Parulidae",wiki:"Cerulean_warbler"},
+  {name:"Northern Parula",sci:"Setophaga americana",family:"New World Warblers",famSci:"Parulidae",wiki:"Northern_parula"},
+  {name:"Magnolia Warbler",sci:"Setophaga magnolia",family:"New World Warblers",famSci:"Parulidae",wiki:"Magnolia_warbler"},
+  {name:"Bay-breasted Warbler",sci:"Setophaga castanea",family:"New World Warblers",famSci:"Parulidae",wiki:"Bay-breasted_warbler"},
+  {name:"Blackburnian Warbler",sci:"Setophaga fusca",family:"New World Warblers",famSci:"Parulidae",wiki:"Blackburnian_warbler"},
+  {name:"Yellow Warbler",sci:"Setophaga petechia",family:"New World Warblers",famSci:"Parulidae",wiki:"American_yellow_warbler"},
+  {name:"Chestnut-sided Warbler",sci:"Setophaga pensylvanica",family:"New World Warblers",famSci:"Parulidae",wiki:"Chestnut-sided_warbler"},
+  {name:"Blackpoll Warbler",sci:"Setophaga striata",family:"New World Warblers",famSci:"Parulidae",wiki:"Blackpoll_warbler"},
+  {name:"Black-throated Blue Warbler",sci:"Setophaga caerulescens",family:"New World Warblers",famSci:"Parulidae",wiki:"Black-throated_blue_warbler"},
+  {name:"Palm Warbler",sci:"Setophaga palmarum",family:"New World Warblers",famSci:"Parulidae",wiki:"Palm_warbler"},
+  {name:"Pine Warbler",sci:"Setophaga pinus",family:"New World Warblers",famSci:"Parulidae",wiki:"Pine_warbler"},
+  {name:"Yellow-rumped Warbler",sci:"Setophaga coronata",family:"New World Warblers",famSci:"Parulidae",wiki:"Yellow-rumped_warbler"},
+  {name:"Yellow-throated Warbler",sci:"Setophaga dominica",family:"New World Warblers",famSci:"Parulidae",wiki:"Yellow-throated_warbler"},
+  {name:"Prairie Warbler",sci:"Setophaga discolor",family:"New World Warblers",famSci:"Parulidae",wiki:"Prairie_warbler"},
+  {name:"Black-throated Gray Warbler",sci:"Setophaga nigrescens",family:"New World Warblers",famSci:"Parulidae",wiki:"Black-throated_gray_warbler"},
+  {name:"Townsend's Warbler",sci:"Setophaga townsendi",family:"New World Warblers",famSci:"Parulidae",wiki:"Townsend's_warbler"},
+  {name:"Hermit Warbler",sci:"Setophaga occidentalis",family:"New World Warblers",famSci:"Parulidae",wiki:"Hermit_warbler"},
+  {name:"Black-throated Green Warbler",sci:"Setophaga virens",family:"New World Warblers",famSci:"Parulidae",wiki:"Black-throated_green_warbler"},
+  {name:"Canada Warbler",sci:"Cardellina canadensis",family:"New World Warblers",famSci:"Parulidae",wiki:"Canada_warbler"},
+  {name:"Wilson's Warbler",sci:"Cardellina pusilla",family:"New World Warblers",famSci:"Parulidae",wiki:"Wilson's_warbler"},
+  {name:"Painted Redstart",sci:"Myioborus pictus",family:"New World Warblers",famSci:"Parulidae",wiki:"Painted_redstart"},
+  {name:"Summer Tanager",sci:"Piranga rubra",family:"Cardinals & Allies",famSci:"Cardinalidae",wiki:"Summer_tanager"},
+  {name:"Scarlet Tanager",sci:"Piranga olivacea",family:"Cardinals & Allies",famSci:"Cardinalidae",wiki:"Scarlet_tanager"},
+  {name:"Western Tanager",sci:"Piranga ludoviciana",family:"Cardinals & Allies",famSci:"Cardinalidae",wiki:"Western_tanager"},
+  {name:"Northern Cardinal",sci:"Cardinalis cardinalis",family:"Cardinals & Allies",famSci:"Cardinalidae",wiki:"Northern_cardinal"},
+  {name:"Pyrrhuloxia",sci:"Cardinalis sinuatus",family:"Cardinals & Allies",famSci:"Cardinalidae",wiki:"Pyrrhuloxia"},
+  {name:"Rose-breasted Grosbeak",sci:"Pheucticus ludovicianus",family:"Cardinals & Allies",famSci:"Cardinalidae",wiki:"Rose-breasted_grosbeak"},
+  {name:"Black-headed Grosbeak",sci:"Pheucticus melanocephalus",family:"Cardinals & Allies",famSci:"Cardinalidae",wiki:"Black-headed_grosbeak"},
+  {name:"Blue Grosbeak",sci:"Passerina caerulea",family:"Cardinals & Allies",famSci:"Cardinalidae",wiki:"Blue_grosbeak"},
+  {name:"Lazuli Bunting",sci:"Passerina amoena",family:"Cardinals & Allies",famSci:"Cardinalidae",wiki:"Lazuli_bunting"},
+  {name:"Indigo Bunting",sci:"Passerina cyanea",family:"Cardinals & Allies",famSci:"Cardinalidae",wiki:"Indigo_bunting"},
+  {name:"Painted Bunting",sci:"Passerina ciris",family:"Cardinals & Allies",famSci:"Cardinalidae",wiki:"Painted_bunting"},
+  {name:"Dickcissel",sci:"Spiza americana",family:"Cardinals & Allies",famSci:"Cardinalidae",wiki:"Dickcissel"},
+];
+
+const FAMILIES = [...new Set(BIRD_DATA.map(b=>b.family))].sort();
+
+// ---- Image + blurb fetch with multi-source fallback ----
+const cache = {};
+function withTimeout(promise, ms){
+  return Promise.race([promise, new Promise((_,rej)=>setTimeout(()=>rej(new Error("timeout")), ms))]);
+}
+async function srcWikiRest(bird){
+  const t = encodeURIComponent(bird.wiki);
+  const r = await withTimeout(fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${t}`,{headers:{Accept:"application/json"}}), 7000);
+  if(!r.ok) throw 0;
+  const d = await r.json();
+  return {img: d.originalimage?.source || d.thumbnail?.source || null, blurb: d.extract||""};
+}
+async function srcWikiAction(bird){
+  const t = encodeURIComponent(bird.wiki.replace(/_/g," "));
+  const url = `https://en.wikipedia.org/w/api.php?action=query&format=json&origin=*`
+    + `&prop=pageimages|extracts&piprop=original|thumbnail&pithumbsize=900`
+    + `&exintro=1&explaintext=1&redirects=1&titles=${t}`;
+  const r = await withTimeout(fetch(url), 7000);
+  if(!r.ok) throw 0;
+  const d = await r.json();
+  const page = Object.values(d.query?.pages || {})[0] || {};
+  return {img: page.original?.source || page.thumbnail?.source || null, blurb: page.extract||""};
+}
+async function srcINat(bird){
+  const url = `https://api.inaturalist.org/v1/taxa?q=${encodeURIComponent(bird.sci)}&rank=species&per_page=1`;
+  const r = await withTimeout(fetch(url), 7000);
+  if(!r.ok) throw 0;
+  const d = await r.json();
+  const res = (d.results||[])[0];
+  let img = res?.default_photo?.medium_url || res?.default_photo?.url || null;
+  if(img) img = img.replace("/square.","/medium.").replace("/small.","/medium.");
+  return {img, blurb: res?.wikipedia_summary ? res.wikipedia_summary.replace(/<[^>]+>/g,"") : ""};
+}
+async function fetchBird(bird){
+  if(cache[bird.wiki]) return cache[bird.wiki];
+  let blurb = "";
+  for(const src of [srcWikiRest, srcWikiAction, srcINat]){
+    try{
+      const out = await src(bird);
+      if(out.blurb && !blurb) blurb = out.blurb;
+      if(out.img){ const res={img:out.img, blurb:blurb||out.blurb||""}; cache[bird.wiki]=res; return res; }
+    }catch(e){}
+  }
+  const res={img:null, blurb}; cache[bird.wiki]=res; return res;
+}
+
+// ---- Decoy picker (plausible lookalikes; fixed difficulty, no escalation) ----
+function genusOf(sci){return sci.split(" ")[0];}
+function nameTokens(name){return new Set(name.toLowerCase().replace(/[^a-z\s-]/g,"").split(/[\s-]+/).filter(Boolean));}
+function confusion(t,o){
+  if(t.name===o.name) return -1;
+  let s=0;
+  if(t.family===o.family) s+=5;
+  if(genusOf(t.sci)===genusOf(o.sci)) s+=4;
+  const a=nameTokens(t.name), b=nameTokens(o.name); let sh=0;
+  a.forEach(x=>{if(b.has(x)&&x.length>2) sh++;});
+  return s + sh*2;
+}
+function pickDecoys(target, pool, count){
+  const scored = pool.filter(b=>b.name!==target.name)
+    .map(b=>({b,c:confusion(target,b)})).sort((x,y)=>y.c-x.c);
+  const window = scored.slice(0, Math.max(count+1, Math.min(scored.length, count+5)));
+  const chosen=[]; const used=new Set();
+  while(chosen.length<count && used.size<window.length){
+    const liveIdx=[]; window.forEach((_,i)=>{if(!used.has(i))liveIdx.push(i);});
+    const weights = liveIdx.map(i=>Math.max(window[i].c,0.4)+0.6);
+    const total = weights.reduce((a,w)=>a+w,0);
+    let r=Math.random()*total, k=0;
+    for(; k<weights.length; k++){ r-=weights[k]; if(r<=0) break; }
+    const realIdx = liveIdx[Math.min(k, liveIdx.length-1)];
+    used.add(realIdx); chosen.push(window[realIdx].b);
+  }
+  return chosen;
+}
+function shuffle(arr){const a=[...arr];for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
+
+// ---- FOCUS TIERS: tap to set sharpness. Blurrier = more points. ----
+// Index 0 = fully blurred (100 pts) ... last = fully sharp (25 pts).
+const TIERS = [
+  {pts:100, label:"Blurred", blur:20},
+  {pts:75,  label:"Hazy",    blur:11},
+  {pts:50,  label:"Soft",    blur:5},
+  {pts:25,  label:"Sharp",   blur:0},
+];
+
+// ---- tiny DOM helper ----
+function h(tag, attrs, ...kids){
+  const e=document.createElement(tag);
+  if(attrs) for(const k in attrs){
+    if(k==="style") Object.assign(e.style, attrs[k]);
+    else if(k.startsWith("on")) e.addEventListener(k.slice(2).toLowerCase(), attrs[k]);
+    else if(k==="html") e.innerHTML = attrs[k];
+    else if(attrs[k]!=null && attrs[k]!==false) e.setAttribute(k, attrs[k]);
+  }
+  kids.flat().forEach(c=>{ if(c==null||c===false) return; e.appendChild(typeof c==="string"||typeof c==="number"?document.createTextNode(c):c); });
+  return e;
+}
+const CS = getComputedStyle(document.documentElement);
+const col = n => CS.getPropertyValue(n).trim();
+
+// ---- game state ----
+const S = {
+  screen:"home", selFams:[], choices:4, rounds:10,
+  round:0, score:0, streak:0, best:0,
+  target:null, options:[], picked:null, revealed:false,
+  img:null, blurb:"", loading:false, imgError:false,
+  focus:0, lastGain:0, lastTier:null, history:[], used:new Set(),
+};
+const app = document.getElementById("app");
+
+function pool(){ return S.selFams.length? BIRD_DATA.filter(b=>S.selFams.includes(b.family)) : BIRD_DATA; }
+function effChoices(){ return Math.min(S.choices, BIRD_DATA.length); }
+// Decoys come from the chosen pool when it's big enough to fill the round;
+// otherwise we borrow from the full dataset so a tiny family still gives a
+// real multiple-choice question. Target always comes from the chosen pool.
+function decoyPool(){
+  const p = pool();
+  return p.length >= S.choices ? p : BIRD_DATA;
+}
+
+async function loadRound(n){
+  S.picked=null; S.revealed=false; S.img=null; S.blurb=""; S.imgError=false;
+  S.loading=true; S.focus=0; S.lastTier=null;
+  let cands = pool().filter(b=>!S.used.has(b.name));
+  if(cands.length<1){ S.used=new Set(); cands=pool(); }
+  const tgt = cands[Math.floor(Math.random()*cands.length)];
+  S.used.add(tgt.name);
+  S.target=tgt;
+  S.options=shuffle([tgt, ...pickDecoys(tgt, decoyPool(), effChoices()-1)]);
+  S.round=n; render();
+  try{
+    const d = await fetchBird(tgt);
+    if(!d.img) S.imgError=true;
+    S.img=d.img; S.blurb=d.blurb;
+  }catch(e){ S.imgError=true; }
+  S.loading=false; render();
+}
+
+function startGame(){
+  S.used=new Set(); S.score=0; S.streak=0; S.best=0; S.history=[];
+  S.screen="play"; loadRound(1);
+}
+function choose(name){
+  if(S.revealed||!S.target) return;
+  S.picked=name; S.revealed=true;
+  const correct = name===S.target.name;
+  const tier = TIERS[S.focus];
+  const gained = correct ? tier.pts : 0;
+  S.lastGain=gained; S.lastTier=tier; S.score+=gained;
+  S.history.push({bird:S.target, correct, picked:name, pts:gained, tier:tier.label});
+  if(correct){ S.streak++; S.best=Math.max(S.best,S.streak); } else S.streak=0;
+  render();
+}
+function next(){ if(S.round>=S.rounds){ S.screen="over"; render(); } else loadRound(S.round+1); }
+
+// set focus level by tapping a button (idx into TIERS)
+function setFocus(idx){
+  S.focus = idx;
+  const im=document.getElementById("birdimg");
+  if(im && !S.imgError){ im.style.filter = `blur(${TIERS[idx].blur}px)`; }
+  // restyle the focus buttons to show which is active
+  document.querySelectorAll("[data-focusbtn]").forEach(el=>{
+    const i = +el.getAttribute("data-focusbtn");
+    const on = i===idx;
+    el.style.background = on ? col("--gold") : "transparent";
+    el.style.color = on ? "#16201c" : col("--parch2");
+    el.style.borderColor = on ? col("--gold") : "rgba(243,236,221,0.25)";
+  });
+}
+
+// =================== RENDER ===================
+function render(){
+  app.innerHTML="";
+  if(S.screen==="home") app.appendChild(Home());
+  else if(S.screen==="play") app.appendChild(Play());
+  else app.appendChild(Over());
+}
+
+function Header(small){
+  return h("div",{style:{paddingTop:small?"22px":"34px",paddingBottom:"6px"}},
+    h("div",{class:"mono",style:{fontSize:"11px",letterSpacing:"3px",color:col("--gold"),textTransform:"uppercase"}},"Field Guide Game · North America"),
+    h("div",{class:"fraunces",style:{fontWeight:800,lineHeight:"0.95",fontSize:small?"38px":"52px",marginTop:"4px",color:col("--parch"),letterSpacing:"-1px"}},
+      "Plumage", h("span",{style:{color:col("--accent")}},".")),
+    !small && h("div",{class:"fraunces",style:{fontStyle:"italic",color:col("--parch2"),fontSize:"16px",marginTop:"2px"}},"a bird identification puzzle")
+  );
+}
+function sectionLabel(t){
+  return h("div",{class:"mono",style:{fontSize:"11px",letterSpacing:"2px",textTransform:"uppercase",color:col("--gold"),margin:"22px 0 10px"}},t);
+}
+function chip(label, active, onClick, accent){
+  const a=accent||col("--accent");
+  return h("button",{onClick,style:{
+    fontFamily:"Inter,sans-serif",fontSize:"13.5px",fontWeight:500,padding:"9px 13px",borderRadius:"999px",cursor:"pointer",
+    border:`1.5px solid ${active?a:"rgba(243,236,221,0.22)"}`,background:active?a:"transparent",
+    color:active?"#16201c":col("--parch2"),transition:"all .12s ease"
+  }}, label);
+}
+function primaryBtn(label, onClick, mt){
+  return h("button",{onClick,style:{width:"100%",marginTop:(mt||22)+"px",padding:"15px 18px",borderRadius:"14px",border:"none",cursor:"pointer",
+    background:col("--accent"),color:"#fff",fontFamily:"Fraunces,serif",fontWeight:700,fontSize:"18px",boxShadow:"0 10px 26px rgba(224,83,61,0.35)"}}, label);
+}
+function ghostBtn(label,onClick){
+  return h("button",{onClick,style:{width:"100%",marginTop:"10px",padding:"13px 18px",borderRadius:"14px",
+    border:"1.5px solid rgba(243,236,221,0.25)",cursor:"pointer",background:"transparent",color:col("--parch2"),
+    fontFamily:"Inter,sans-serif",fontWeight:600,fontSize:"14px"}}, label);
+}
+
+function Home(){
+  const allOn = S.selFams.length===0;
+  const famChips = h("div",{style:{display:"flex",flexWrap:"wrap",gap:"8px"}},
+    chip("All families", allOn, ()=>{S.selFams=[];render();}, col("--gold")),
+    ...FAMILIES.map(f=>{
+      const on=S.selFams.includes(f);
+      const n=BIRD_DATA.filter(b=>b.family===f).length;
+      return chip(h("span",{},f," ",h("span",{class:"mono",style:{opacity:0.55,fontSize:"11px"}},"·"+n)), on, ()=>{
+        S.selFams = on ? S.selFams.filter(x=>x!==f) : [...S.selFams,f]; render();
+      });
+    })
+  );
+  return h("div",{},
+    Header(false),
+    h("p",{style:{color:col("--parch2"),lineHeight:1.5,marginTop:"-4px",fontSize:"15px"}},
+      "Identify the bird from its photo. Pick a field — or take on every family at once. Each photo starts blurred; roll the focus wheel to sharpen it, but the clearer you make it before guessing, the fewer points it's worth."),
+    sectionLabel("Choose your fields"), famChips,
+    h("div",{class:"mono",style:{marginTop:"8px",fontSize:"12.5px",color:col("--faint")}}, pool().length+" birds in play"+(allOn?" across all families":"")),
+    sectionLabel("Choices per round"),
+    h("div",{style:{display:"flex",gap:"8px"}}, ...[2,3,4,6].map(n=>chip(String(n), S.choices===n, ()=>{S.choices=n;render();}, col("--accent2")))),
+    sectionLabel("Rounds"),
+    h("div",{style:{display:"flex",gap:"8px"}}, ...[5,10,15,20].map(n=>chip(String(n), S.rounds===n, ()=>{S.rounds=n;render();}, col("--accent2")))),
+    primaryBtn("Start spotting →", startGame),
+    h("p",{style:{color:col("--faint"),fontSize:"12px",marginTop:"18px",lineHeight:1.5}},
+      "Photos and notes load live from Wikipedia and iNaturalist. Needs an internet connection.")
+  );
+}
+
+function TopBar(){
+  return h("div",{style:{paddingTop:"18px",paddingBottom:"12px"}},
+    h("div",{style:{display:"flex",alignItems:"center",justifyContent:"space-between"}},
+      h("button",{onClick:()=>{S.screen="home";render();},style:{background:"transparent",border:"none",color:col("--parch2"),cursor:"pointer",fontFamily:"'IBM Plex Mono',monospace",fontSize:"12px"}},"‹ quit"),
+      h("div",{class:"mono",style:{fontSize:"12px",color:col("--parch2")}},`ROUND ${S.round}/${S.rounds}`),
+      h("div",{class:"mono",style:{fontSize:"12px",color:col("--gold")}},`${S.score} pts`)
+    ),
+    h("div",{style:{display:"flex",alignItems:"center",gap:"10px",marginTop:"10px"}},
+      h("span",{class:"mono",style:{fontSize:"12px",color:col("--parch2")}}, ("🔥".repeat(Math.min(S.streak,5))||"—")+" "+(S.streak>0?"x"+S.streak:"no streak"))
+    )
+  );
+}
+
+function FocusButtons(){
+  return h("div",{style:{marginTop:"14px"}},
+    h("div",{class:"mono",style:{fontSize:"11px",letterSpacing:"1.5px",color:col("--gold"),textTransform:"uppercase",marginBottom:"7px"}},
+      "Focus — tap to sharpen · blurrier scores more"),
+    h("div",{style:{display:"grid",gridTemplateColumns:"repeat(4, 1fr)",gap:"8px"}},
+      ...TIERS.map((t,i)=>{
+        const on = i===S.focus;
+        return h("button",{"data-focusbtn":String(i),onClick:()=>setFocus(i),style:{
+          padding:"11px 6px",borderRadius:"12px",cursor:"pointer",textAlign:"center",
+          border:`1.5px solid ${on?col("--gold"):"rgba(243,236,221,0.25)"}`,
+          background:on?col("--gold"):"transparent",color:on?"#16201c":col("--parch2"),
+          transition:"all .12s ease"}},
+          h("div",{style:{fontFamily:"Fraunces,serif",fontWeight:700,fontSize:"15px",lineHeight:1}}, String(t.pts)),
+          h("div",{class:"mono",style:{fontSize:"10px",marginTop:"4px",opacity:0.85}}, t.label)
+        );
+      })
+    )
+  );
+}
+
+function Play(){
+  const t = TIERS[S.focus];
+  const blurPx = S.imgError ? 0 : t.blur;
+  const stage = h("div",{style:{position:"relative",width:"100%",aspectRatio:"4 / 3",borderRadius:"18px",overflow:"hidden",
+    background:col("--ink2"),border:"1px solid rgba(243,236,221,0.12)",boxShadow:"0 18px 50px rgba(0,0,0,0.45)"}});
+  if(S.loading){
+    stage.appendChild(h("div",{style:{position:"absolute",inset:0,background:"linear-gradient(100deg,#1f2b26 30%,#2a3833 50%,#1f2b26 70%)",backgroundSize:"200% 100%",animation:"shimmer 1.2s infinite linear"}}));
+  } else if(S.img && !S.imgError){
+    stage.appendChild(h("img",{id:"birdimg",src:S.img,alt:"mystery bird",
+      onerror:()=>{S.imgError=true;render();},
+      style:{width:"100%",height:"100%",objectFit:"cover",filter:`blur(${blurPx}px)`,transition:"filter .12s linear"}}));
+  } else {
+    stage.appendChild(h("div",{style:{position:"absolute",inset:0,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",textAlign:"center",padding:"24px",color:col("--parch2")}},
+      h("div",{style:{fontSize:"30px"}},"🐦"),
+      h("div",{style:{marginTop:"8px",fontSize:"14px"}},"Photo wouldn't load — go by the name match this round.")));
+  }
+
+  const opts = h("div",{style:{display:"grid",gridTemplateColumns:"1fr",gap:"10px",marginTop:"14px"}},
+    ...S.options.map(o=>{
+      const isT = S.target && o.name===S.target.name;
+      const isP = S.picked===o.name;
+      let bg=col("--parch"), bd=col("--line");
+      if(S.revealed){ if(isT){bg="#dff1e4";bd=col("--good");} else if(isP){bg="#f7dcd8";bd=col("--bad");} else {bg="#efe7d4";} }
+      return h("button",{onClick:()=>choose(o.name),disabled:S.revealed?"":null,style:{
+        textAlign:"left",padding:"13px 15px",borderRadius:"13px",border:`1.5px solid ${bd}`,background:bg,color:col("--text"),
+        cursor:S.revealed?"default":"pointer",width:"100%",transition:"box-shadow .15s ease",
+        boxShadow:(S.revealed&&isT)?"0 0 0 3px rgba(47,143,91,0.18)":"none"}},
+        h("div",{class:"fraunces",style:{fontWeight:600,fontSize:"17px",lineHeight:"1.15"}},o.name),
+        h("div",{class:"mono",style:{fontSize:"11.5px",color:col("--faint"),marginTop:"3px"}}, o.sci+" · "+o.famSci)
+      );
+    })
+  );
+
+  const node = h("div",{}, TopBar(), stage);
+
+  if(!S.revealed && !S.loading && !S.imgError) node.appendChild(FocusButtons());
+
+  if(!S.revealed){
+    node.appendChild(h("p",{style:{textAlign:"center",color:col("--parch2"),fontSize:"13px",margin:"12px 0 2px"}},
+      "Which bird is this?"));
+  }
+  node.appendChild(opts);
+
+  if(S.revealed && S.target){
+    const correct = S.picked===S.target.name;
+    const tierNote = correct ? `${S.lastTier.label} focus · +${S.lastGain}` : "no points";
+    const reveal = h("div",{style:{marginTop:"16px",background:col("--parch"),color:col("--text"),borderRadius:"16px",padding:"16px",border:`1px solid ${col("--line")}`}},
+      h("div",{style:{display:"flex",alignItems:"baseline",justifyContent:"space-between",gap:"10px"}},
+        h("div",{class:"fraunces",style:{fontWeight:800,fontSize:"20px"}}, correct?"Spotted it.":"Not quite."),
+        h("div",{class:"mono",style:{fontSize:"12px",fontWeight:500,color:correct?col("--good"):col("--bad")}}, tierNote)),
+      h("div",{class:"mono",style:{fontSize:"12px",color:col("--faint"),marginTop:"4px"}}, `${S.target.name} · ${S.target.sci} · ${S.target.family}`),
+      S.blurb && h("p",{style:{fontSize:"13.5px",lineHeight:1.5,marginTop:"10px",marginBottom:0}}, S.blurb.length>260?S.blurb.slice(0,257)+"…":S.blurb),
+      h("a",{href:`https://en.wikipedia.org/wiki/${S.target.wiki}`,target:"_blank",rel:"noreferrer",
+        style:{display:"inline-block",marginTop:"10px",fontSize:"12.5px",color:col("--accent2"),fontWeight:600,textDecoration:"none"}},"Read more on Wikipedia ↗"),
+      primaryBtn(S.round>=S.rounds?"See results →":"Next bird →", next, 14)
+    );
+    node.appendChild(reveal);
+  }
+  return node;
+}
+
+function stat(label,value,accent){
+  return h("div",{},
+    h("div",{class:"fraunces",style:{fontWeight:800,fontSize:"26px",color:accent}}, String(value)),
+    h("div",{class:"mono",style:{fontSize:"10.5px",letterSpacing:"1px",color:col("--faint"),textTransform:"uppercase"}}, label));
+}
+function Over(){
+  const correctCount = S.history.filter(x=>x.correct).length;
+  const pct = S.history.length?Math.round(correctCount/S.history.length*100):0;
+  const rows = h("div",{style:{marginTop:"18px",borderTop:`1px solid ${col("--line")}`,paddingTop:"12px"}},
+    ...S.history.map((x,i)=>h("div",{style:{display:"flex",alignItems:"center",gap:"10px",padding:"7px 0",
+      borderBottom:i<S.history.length-1?`1px solid ${col("--parch2")}`:"none"}},
+      h("span",{style:{fontSize:"15px"}}, x.correct?"✅":"❌"),
+      h("div",{style:{flex:1}},
+        h("div",{class:"fraunces",style:{fontWeight:600,fontSize:"15px",color:col("--text")}}, x.bird.name),
+        h("div",{class:"mono",style:{fontSize:"12px",color: x.correct?col("--faint"):col("--bad")}},
+          x.correct ? `${x.tier} focus · +${x.pts}` : "you said: "+x.picked)),
+      h("span",{class:"mono",style:{fontSize:"11px",color:col("--faint")}}, x.bird.famSci)))
+  );
+  return h("div",{},
+    Header(true),
+    h("div",{style:{background:col("--parch"),color:col("--text"),borderRadius:"18px",padding:"20px",border:`1px solid ${col("--line")}`,marginTop:"8px"}},
+      h("div",{class:"fraunces",style:{fontWeight:800,fontSize:"26px"}},"Field log"),
+      h("div",{style:{display:"flex",gap:"18px",marginTop:"12px",flexWrap:"wrap"}},
+        stat("Score",S.score,col("--accent")),
+        stat("Correct",`${correctCount}/${S.history.length}`,col("--good")),
+        stat("Accuracy",pct+"%",col("--accent2")),
+        stat("Best streak",S.best,col("--gold"))),
+      rows
+    ),
+    primaryBtn("New round →", ()=>{S.screen="home";render();}, 16),
+    ghostBtn("Replay same settings", startGame)
+  );
+}
+
+render();
+</script>
+</body>
+</html>
