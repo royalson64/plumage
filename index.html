@@ -210,6 +210,7 @@ const BIRD_DATA = [
   {name:"Snowy Plover",sci:"Anarhynchus nivosus",family:"Plovers and Lapwings",famSci:"Charadriidae",wiki:"Snowy_plover",ebird:"snoplo5"},
   {name:"Upland Sandpiper",sci:"Bartramia longicauda",family:"Sandpipers and Allies",famSci:"Scolopacidae",wiki:"Upland_sandpiper",ebird:"uplsan"},
   {name:"Bristle-thighed Curlew",sci:"Numenius tahitiensis",family:"Sandpipers and Allies",famSci:"Scolopacidae",wiki:"Bristle-thighed_curlew",ebird:"brtcur"},
+  {name:"Hudsonian Whimbrel",sci:"Numenius hudsonicus",family:"Sandpipers and Allies",famSci:"Scolopacidae",wiki:"Hudsonian_whimbrel",ebird:"whimbr3"},
   {name:"Long-billed Curlew",sci:"Numenius americanus",family:"Sandpipers and Allies",famSci:"Scolopacidae",wiki:"Long-billed_curlew",ebird:"lobcur"},
   {name:"Bar-tailed Godwit",sci:"Limosa lapponica",family:"Sandpipers and Allies",famSci:"Scolopacidae",wiki:"Bar-tailed_godwit",ebird:"batgod"},
   {name:"Hudsonian Godwit",sci:"Limosa haemastica",family:"Sandpipers and Allies",famSci:"Scolopacidae",wiki:"Hudsonian_godwit",ebird:"hudgod"},
@@ -289,6 +290,7 @@ const BIRD_DATA = [
   {name:"Glaucous Gull",sci:"Larus hyperboreus",family:"Gulls, Terns, and Skimmers",famSci:"Laridae",wiki:"Glaucous_gull",ebird:"glagul"},
   {name:"Lesser Black-backed Gull",sci:"Larus fuscus",family:"Gulls, Terns, and Skimmers",famSci:"Laridae",wiki:"Lesser_black-backed_gull",ebird:"lbbgul"},
   {name:"California Gull",sci:"Larus californicus",family:"Gulls, Terns, and Skimmers",famSci:"Laridae",wiki:"California_gull",ebird:"calgul"},
+  {name:"American Herring Gull",sci:"Larus smithsonianus",family:"Gulls, Terns, and Skimmers",famSci:"Laridae",wiki:"American_herring_gull",ebird:"amhgul1"},
   {name:"Glaucous-winged Gull",sci:"Larus glaucescens",family:"Gulls, Terns, and Skimmers",famSci:"Laridae",wiki:"Glaucous-winged_gull",ebird:"glwgul"},
   {name:"Slaty-backed Gull",sci:"Larus schistisagus",family:"Gulls, Terns, and Skimmers",famSci:"Laridae",wiki:"Slaty-backed_gull",ebird:"slbgul"},
   {name:"Iceland Gull",sci:"Larus glaucoides",family:"Gulls, Terns, and Skimmers",famSci:"Laridae",wiki:"Iceland_gull",ebird:"y00478"},
@@ -468,6 +470,7 @@ const BIRD_DATA = [
   {name:"Hammond's Flycatcher",sci:"Empidonax hammondii",family:"Tyrant Flycatchers",famSci:"Tyrannidae",wiki:"Hammond's_flycatcher",ebird:"hamfly"},
   {name:"Gray Flycatcher",sci:"Empidonax wrightii",family:"Tyrant Flycatchers",famSci:"Tyrannidae",wiki:"Gray_flycatcher",ebird:"gryfly"},
   {name:"Dusky Flycatcher",sci:"Empidonax oberholseri",family:"Tyrant Flycatchers",famSci:"Tyrannidae",wiki:"Dusky_flycatcher",ebird:"dusfly"},
+  {name:"Pine Flycatcher",sci:"Empidonax affinis",family:"Tyrant Flycatchers",famSci:"Tyrannidae",wiki:"Pine_flycatcher",ebird:"pinfly1"},
   {name:"Western Flycatcher",sci:"Empidonax difficilis",family:"Tyrant Flycatchers",famSci:"Tyrannidae",wiki:"Western_flycatcher",ebird:"wesfly"},
   {name:"Buff-breasted Flycatcher",sci:"Empidonax fulvifrons",family:"Tyrant Flycatchers",famSci:"Tyrannidae",wiki:"Buff-breasted_flycatcher",ebird:"bubfly"},
   {name:"Black Phoebe",sci:"Sayornis nigricans",family:"Tyrant Flycatchers",famSci:"Tyrannidae",wiki:"Black_phoebe",ebird:"blkpho"},
@@ -529,6 +532,7 @@ const BIRD_DATA = [
   {name:"Mexican Chickadee",sci:"Poecile sclateri",family:"Tits, Chickadees, and Titmice",famSci:"Paridae",wiki:"Mexican_chickadee",ebird:"mexchi"},
   {name:"Chestnut-backed Chickadee",sci:"Poecile rufescens",family:"Tits, Chickadees, and Titmice",famSci:"Paridae",wiki:"Chestnut-backed_chickadee",ebird:"chbchi"},
   {name:"Boreal Chickadee",sci:"Poecile hudsonicus",family:"Tits, Chickadees, and Titmice",famSci:"Paridae",wiki:"Boreal_chickadee",ebird:"borchi2"},
+  {name:"Gray-headed Chickadee",sci:"Poecile cinctus",family:"Tits, Chickadees, and Titmice",famSci:"Paridae",wiki:"Grey-headed_chickadee",ebird:"gyhchi"},
   {name:"Bridled Titmouse",sci:"Baeolophus wollweberi",family:"Tits, Chickadees, and Titmice",famSci:"Paridae",wiki:"Bridled_titmouse",ebird:"britit"},
   {name:"Oak Titmouse",sci:"Baeolophus inornatus",family:"Tits, Chickadees, and Titmice",famSci:"Paridae",wiki:"Oak_titmouse",ebird:"oaktit"},
   {name:"Juniper Titmouse",sci:"Baeolophus ridgwayi",family:"Tits, Chickadees, and Titmice",famSci:"Paridae",wiki:"Juniper_titmouse",ebird:"juntit1"},
@@ -926,7 +930,7 @@ const S = {
   round:0, score:0, streak:0, best:0,
   target:null, options:[], picked:null, revealed:false,
   img:null, blurb:"", loading:false, imgError:false,
-  focus:0, lastGain:0, lastTier:null, history:[], used:new Set(),
+  focus:0, bestIdx:0, lastGain:0, lastTier:null, history:[], used:new Set(),
 };
 const app = document.getElementById("app");
 
@@ -942,7 +946,7 @@ function decoyPool(){
 
 async function loadRound(n){
   S.picked=null; S.revealed=false; S.img=null; S.blurb=""; S.imgError=false;
-  S.loading=true; S.focus=0; S.lastTier=null;
+  S.loading=true; S.focus=0; S.bestIdx=0; S.lastTier=null;
   let cands = pool().filter(b=>!S.used.has(b.name));
   if(cands.length<1){ S.used=new Set(); cands=pool(); }
   const tgt = cands[Math.floor(Math.random()*cands.length)];
@@ -966,7 +970,9 @@ function choose(name){
   if(S.revealed||!S.target) return;
   S.picked=name; S.revealed=true;
   const correct = name===S.target.name;
-  const tier = TIERS[S.focus];
+  // Score by the sharpest focus reached this round, not the current setting —
+  // blurring back after sharpening can't win back the higher points.
+  const tier = TIERS[S.bestIdx];
   const gained = correct ? tier.pts : 0;
   S.lastGain=gained; S.lastTier=tier; S.score+=gained;
   S.history.push({bird:S.target, correct, picked:name, pts:gained, tier:tier.label});
@@ -978,16 +984,25 @@ function next(){ if(S.round>=S.rounds){ S.screen="over"; render(); } else loadRo
 // set focus level by tapping a button (idx into TIERS)
 function setFocus(idx){
   S.focus = idx;
+  // Ratchet: sharpening locks in the lower score; it can never go back up.
+  if(idx > S.bestIdx) S.bestIdx = idx;
   const im=document.getElementById("birdimg");
   if(im && !S.imgError){ im.style.filter = `blur(${TIERS[idx].blur}px)`; }
-  // restyle the focus buttons to show which is active
+  // restyle the focus buttons: highlight the active one, and dim/strike the
+  // blurrier tiers whose higher point values are no longer attainable.
   document.querySelectorAll("[data-focusbtn]").forEach(el=>{
     const i = +el.getAttribute("data-focusbtn");
     const on = i===idx;
+    const locked = i < S.bestIdx;
     el.style.background = on ? col("--gold") : "transparent";
-    el.style.color = on ? "#16201c" : col("--parch2");
-    el.style.borderColor = on ? col("--gold") : "rgba(243,236,221,0.25)";
+    el.style.color = on ? "#16201c" : (locked ? col("--faint") : col("--parch2"));
+    el.style.borderColor = on ? col("--gold") : (locked ? "rgba(243,236,221,0.12)" : "rgba(243,236,221,0.25)");
+    el.style.opacity = (locked && !on) ? "0.5" : "1";
+    const pts = el.querySelector("[data-pts]");
+    if(pts) pts.style.textDecoration = locked ? "line-through" : "none";
   });
+  const pn=document.getElementById("focuspts");
+  if(pn) pn.textContent = "worth "+TIERS[S.bestIdx].pts+" pts";
 }
 
 // =================== RENDER ===================
@@ -1079,7 +1094,7 @@ function Home(){
   const allOn = S.selFams.length===0;
   const inPlay = pool().length;
   const selectionNote = allOn
-    ? `All ${BIRD_DATA.length} birds · every family`
+    ? "Common North American birds"
     : `${inPlay} birds · ${S.selFams.length} ${S.selFams.length===1?"family":"families"} selected`;
 
   // Left/top pane: identity, the primary CTA, and quick round settings.
@@ -1130,16 +1145,20 @@ function TopBar(){
 function FocusButtons(){
   return h("div",{style:{marginTop:"14px"}},
     h("div",{class:"mono",style:{fontSize:"11px",letterSpacing:"1.5px",color:col("--gold"),textTransform:"uppercase",marginBottom:"7px"}},
-      "Focus — tap to sharpen · blurrier scores more"),
+      "Focus — tap to sharpen · ",
+      h("span",{id:"focuspts",style:{fontWeight:600}}, "worth "+TIERS[S.bestIdx].pts+" pts")),
     h("div",{style:{display:"grid",gridTemplateColumns:"repeat(4, 1fr)",gap:"8px"}},
       ...TIERS.map((t,i)=>{
         const on = i===S.focus;
+        const locked = i < S.bestIdx;
         return h("button",{"data-focusbtn":String(i),onClick:()=>setFocus(i),style:{
           padding:"11px 6px",borderRadius:"12px",cursor:"pointer",textAlign:"center",
-          border:`1.5px solid ${on?col("--gold"):"rgba(243,236,221,0.25)"}`,
-          background:on?col("--gold"):"transparent",color:on?"#16201c":col("--parch2"),
+          border:`1.5px solid ${on?col("--gold"):(locked?"rgba(243,236,221,0.12)":"rgba(243,236,221,0.25)")}`,
+          background:on?col("--gold"):"transparent",
+          color:on?"#16201c":(locked?col("--faint"):col("--parch2")),
+          opacity:(locked&&!on)?"0.5":"1",
           transition:"all .12s ease"}},
-          h("div",{style:{fontFamily:"Fraunces,serif",fontWeight:700,fontSize:"15px",lineHeight:1}}, String(t.pts)),
+          h("div",{"data-pts":"1",style:{fontFamily:"Fraunces,serif",fontWeight:700,fontSize:"15px",lineHeight:1,textDecoration:locked?"line-through":"none"}}, String(t.pts)),
           h("div",{class:"mono",style:{fontSize:"10px",marginTop:"4px",opacity:0.85}}, t.label)
         );
       })
