@@ -869,6 +869,52 @@ const BIRD_DATA = [
 
 const FAMILIES = [...new Set(BIRD_DATA.map(b=>b.family))].sort();
 
+// ---- FIELD GROUPS: fold 90+ families into a handful of birder-friendly
+// buckets for the home screen. Each group expands to its member families,
+// which are the actual filter units. Order roughly follows taxonomy.
+const GROUPS = [
+  {label:"Waterfowl & Waterbirds", families:[
+    "Ducks, Geese, and Waterfowl","Rails, Gallinules, and Coots","Limpkin","Cranes",
+    "Flamingos","Grebes","Loons","Storks","Frigatebirds","Boobies and Gannets","Anhingas",
+    "Cormorants and Shags","Ibises and Spoonbills","Herons, Egrets, and Bitterns","Pelicans",
+    "Tropicbirds","Albatrosses","Southern Storm-Petrels","Northern Storm-Petrels","Shearwaters and Petrels"]},
+  {label:"Shorebirds, Gulls & Auks", families:[
+    "Stilts and Avocets","Oystercatchers","Plovers and Lapwings","Jacanas","Sandpipers and Allies",
+    "Skuas and Jaegers","Auks, Murres, and Puffins","Gulls, Terns, and Skimmers"]},
+  {label:"Birds of Prey", families:[
+    "New World Vultures","Osprey","Hawks, Eagles, and Kites","Barn-Owls","Owls","Falcons and Caracaras"]},
+  {label:"Gamebirds", families:[
+    "Guans, Chachalacas, and Curassows","Guineafowl","New World Quail","Pheasants, Grouse, and Allies"]},
+  {label:"Doves, Cuckoos, Swifts & Hummingbirds", families:[
+    "Pigeons and Doves","Cuckoos","Nightjars and Allies","Swifts","Hummingbirds"]},
+  {label:"Woodpeckers, Kingfishers & Parrots", families:[
+    "Trogons","Kingfishers","Woodpeckers","Cockatoos","Old World Parrots","New World and African Parrots"]},
+  {label:"Flycatchers, Vireos, Jays & Crows", families:[
+    "Tityras and Allies","Tyrant Flycatchers","Vireos, Shrike-Babblers, and Erpornis",
+    "Monarch Flycatchers","Shrikes","Crows, Jays, and Magpies"]},
+  {label:"Warblers, Sparrows & Finches", families:[
+    "Finches, Euphonias, and Allies","Longspurs and Snow Buntings","New World Sparrows",
+    "Yellow-breasted Chat","Troupials and Allies","New World Warblers","Cardinals and Allies",
+    "Tanagers and Allies","Olive Warbler","Old World Sparrows","Wagtails and Pipits",
+    "Weavers and Allies","Waxbills and Allies","Whydahs and Indigobirds"]},
+  {label:"Other Songbirds", families:[
+    "Tits, Chickadees, and Titmice","Penduline-Tits","Larks","Swallows","Bulbuls","Leaf Warblers",
+    "Bush Warblers and Allies","Long-tailed Tits","Parrotbills","White-eyes, Yuhinas, and Allies",
+    "Laughingthrushes and Allies","Kinglets","Nuthatches","Treecreepers","Gnatcatchers","Wrens",
+    "Dippers","Starlings","Mockingbirds and Thrashers","Thrushes and Allies","Old World Flycatchers",
+    "Waxwings","Silky-flycatchers"]},
+];
+// Any family not explicitly placed above falls into a catch-all so nothing is lost.
+(function(){
+  const placed = new Set(GROUPS.flatMap(g=>g.families));
+  const orphans = FAMILIES.filter(f=>!placed.has(f));
+  if(orphans.length) GROUPS.push({label:"More", families:orphans});
+  // keep only families that actually exist in the dataset
+  for(const g of GROUPS) g.families = g.families.filter(f=>FAMILIES.includes(f));
+})();
+const birdsInFamily = f => BIRD_DATA.filter(b=>b.family===f).length;
+const groupBirdCount = g => g.families.reduce((s,f)=>s+birdsInFamily(f),0);
+
 // ---- Image + blurb fetch with multi-source fallback ----
 const cache = {};
 function withTimeout(promise, ms){
@@ -973,7 +1019,7 @@ const col = n => CS.getPropertyValue(n).trim();
 
 // ---- game state ----
 const S = {
-  screen:"home", selFams:[], choices:4, rounds:10,
+  screen:"home", selFams:[], choices:4, rounds:10, openGroups:new Set(),
   round:0, score:0, streak:0, best:0,
   target:null, options:[], picked:null, revealed:false,
   img:null, blurb:"", loading:false, imgError:false,
@@ -1078,29 +1124,79 @@ function ghostBtn(label,onClick){
     fontFamily:"Inter,sans-serif",fontWeight:600,fontSize:"14px"}}, label);
 }
 
-function Home(){
-  const allOn = S.selFams.length===0;
-  const famChips = h("div",{style:{display:"flex",flexWrap:"wrap",gap:"8px"}},
-    chip("All families", allOn, ()=>{S.selFams=[];render();}, col("--gold")),
-    ...FAMILIES.map(f=>{
+// One expandable group row: header (expand toggle + whole-group select) and,
+// when open, the member family chips.
+function groupRow(g){
+  const open = S.openGroups.has(g.label);
+  const sel = g.families.filter(f=>S.selFams.includes(f));
+  const allGroupOn = sel.length===g.families.length && g.families.length>0;
+  const someOn = sel.length>0 && !allGroupOn;
+
+  const toggleOpen = ()=>{ if(open) S.openGroups.delete(g.label); else S.openGroups.add(g.label); render(); };
+  const toggleAll = (e)=>{ e.stopPropagation();
+    const others = S.selFams.filter(f=>!g.families.includes(f));
+    S.selFams = allGroupOn ? others : [...others, ...g.families];
+    render();
+  };
+
+  const header = h("div",{onClick:toggleOpen,style:{
+    display:"flex",alignItems:"center",gap:"10px",padding:"12px 14px",borderRadius:"13px",cursor:"pointer",
+    border:`1.5px solid ${(allGroupOn||someOn)?col("--gold"):"rgba(243,236,221,0.18)"}`,
+    background:allGroupOn?"rgba(212,160,68,0.16)":(someOn?"rgba(212,160,68,0.08)":"transparent"),transition:"all .12s ease"}},
+    h("span",{style:{color:col("--parch2"),fontFamily:"'IBM Plex Mono',monospace",fontSize:"12px",width:"12px",transition:"transform .15s ease",
+      display:"inline-block",transform:open?"rotate(90deg)":"none"}},"›"),
+    h("div",{style:{flex:1,minWidth:0}},
+      h("div",{class:"fraunces",style:{fontWeight:700,fontSize:"15.5px",color:col("--parch"),lineHeight:1.1}}, g.label),
+      h("div",{class:"mono",style:{fontSize:"11px",color:col("--faint"),marginTop:"3px"}},
+        g.families.length+" families · "+groupBirdCount(g)+" birds"+(sel.length?" · "+sel.length+" selected":""))),
+    h("button",{onClick:toggleAll,style:{
+      flexShrink:0,fontFamily:"Inter,sans-serif",fontSize:"12px",fontWeight:600,padding:"6px 11px",borderRadius:"999px",cursor:"pointer",
+      border:`1.5px solid ${allGroupOn?col("--gold"):"rgba(243,236,221,0.25)"}`,
+      background:allGroupOn?col("--gold"):"transparent",color:allGroupOn?"#16201c":col("--parch2")}},
+      allGroupOn?"All ✓":"Add all")
+  );
+
+  if(!open) return h("div",{style:{marginBottom:"8px"}}, header);
+
+  const fams = h("div",{style:{display:"flex",flexWrap:"wrap",gap:"7px",padding:"11px 6px 4px 16px"}},
+    ...g.families.map(f=>{
       const on=S.selFams.includes(f);
-      const n=BIRD_DATA.filter(b=>b.family===f).length;
-      return chip(h("span",{},f," ",h("span",{class:"mono",style:{opacity:0.55,fontSize:"11px"}},"·"+n)), on, ()=>{
+      return chip(h("span",{},f," ",h("span",{class:"mono",style:{opacity:0.55,fontSize:"11px"}},"·"+birdsInFamily(f))), on, ()=>{
         S.selFams = on ? S.selFams.filter(x=>x!==f) : [...S.selFams,f]; render();
       });
     })
   );
+  return h("div",{style:{marginBottom:"8px"}}, header, fams);
+}
+
+function Home(){
+  const allOn = S.selFams.length===0;
+  const inPlay = pool().length;
+  const selectionNote = allOn
+    ? `All ${BIRD_DATA.length} birds · every family`
+    : `${inPlay} birds · ${S.selFams.length} ${S.selFams.length===1?"family":"families"} selected`;
+
   return h("div",{},
     Header(false),
     h("p",{style:{color:col("--parch2"),lineHeight:1.5,marginTop:"-4px",fontSize:"15px"}},
-      "Identify the bird from its photo. Pick a field — or take on every family at once. Each photo starts blurred; roll the focus wheel to sharpen it, but the clearer you make it before guessing, the fewer points it's worth."),
-    sectionLabel("Choose your fields"), famChips,
-    h("div",{class:"mono",style:{marginTop:"8px",fontSize:"12.5px",color:col("--faint")}}, pool().length+" birds in play"+(allOn?" across all families":"")),
+      "Identify the bird from its photo. Each photo starts hazy; roll the focus wheel to sharpen it, but the clearer you make it before guessing, the fewer points it's worth."),
+
+    // Primary call to action up top — most players just want all birds.
+    primaryBtn("Start spotting →", startGame, 18),
+    h("div",{class:"mono",style:{textAlign:"center",marginTop:"9px",fontSize:"12px",color:col("--gold")}}, selectionNote),
+
     sectionLabel("Choices per round"),
     h("div",{style:{display:"flex",gap:"8px"}}, ...[2,3,4,6].map(n=>chip(String(n), S.choices===n, ()=>{S.choices=n;render();}, col("--accent2")))),
     sectionLabel("Rounds"),
     h("div",{style:{display:"flex",gap:"8px"}}, ...[5,10,15,20].map(n=>chip(String(n), S.rounds===n, ()=>{S.rounds=n;render();}, col("--accent2")))),
-    primaryBtn("Start spotting →", startGame),
+
+    sectionLabel("Choose your fields"),
+    h("div",{style:{display:"flex",flexWrap:"wrap",gap:"8px"}},
+      chip("All families", allOn, ()=>{S.selFams=[];render();}, col("--gold")),
+      S.selFams.length>0 && chip("Clear selection", false, ()=>{S.selFams=[];render();}, col("--accent2"))),
+    h("div",{style:{marginTop:"12px"}}, ...GROUPS.map(groupRow)),
+
+    ghostBtn("Start spotting →", startGame),
     h("p",{style:{color:col("--faint"),fontSize:"12px",marginTop:"18px",lineHeight:1.5}},
       "Photos and notes load live from Wikipedia and iNaturalist. Needs an internet connection.")
   );
