@@ -1,3 +1,6 @@
+BIRDS IN BIRDIEGAME.NET
+June 26,2026
+
 Red-throated Loon
 Arctic Loon
 Pacific Loon
@@ -763,3 +766,272 @@ American Goldfinch
 Evening Grosbeak
 House Sparrow
 Eurasian Tree Sparrow
+
+
+BIRDS EXCLUDED FROM PLUMAGE V1.2
+# Plumage birds NOT in birdiegame (116 of 819)
+
+These are birds in Plumage that do not appear in birdiegame_bird_options.txt (birdiegame has 765 names). Matching is by common name, ignoring case/punctuation. Check to KEEP or delete to EXCLUDE, then send back.
+
+> Note: "Common Ground Dove" was treated as matching birdiegame's "Common Ground-Dove".
+
+## Waterfowl & Waterbirds (18)
+
+### Ducks, Geese, and Waterfowl (10)
+
+- [ ] Barnacle Goose — *Branta leucopsis*
+- [ ] Black Swan — *Cygnus atratus*
+- [ ] Garganey — *Spatula querquedula*
+- [ ] Graylag Goose — *Anser anser*
+- [ ] Hawaiian Duck — *Anas wyvilliana*
+- [ ] Hawaiian Goose — *Branta sandvicensis*
+- [ ] Mandarin Duck — *Aix galericulata*
+- [ ] Pink-footed Goose — *Anser brachyrhynchus*
+- [ ] Ruddy Shelduck — *Tadorna ferruginea*
+- [ ] Swan Goose — *Anser cygnoides*
+
+### Rails, Gallinules, and Coots (1)
+
+- [ ] Hawaiian Coot — *Fulica alai*
+
+### Cranes (1)
+
+- [ ] Common Crane — *Grus grus*
+
+### Frigatebirds (1)
+
+- [ ] Great Frigatebird — *Fregata minor*
+
+### Boobies and Gannets (3)
+
+- [ ] Cocos Booby — *Sula brewsteri*
+- [ ] Nazca Booby — *Sula granti*
+- [ ] Red-footed Booby — *Sula sula*
+
+### Herons, Egrets, and Bitterns (1)
+
+- [ ] Little Egret — *Egretta garzetta*
+
+### Shearwaters and Petrels (1)
+
+- [ ] Wedge-tailed Shearwater — *Ardenna pacifica*
+
+## Shorebirds, Gulls & Auks (14)
+
+### Plovers and Lapwings (2)
+
+- [ ] Northern Lapwing — *Vanellus vanellus*
+- [ ] Siberian Sand-Plover — *Anarhynchus mongolus*
+
+### Jacanas (1)
+
+- [ ] Northern Jacana — *Jacana spinosa*
+
+### Sandpipers and Allies (3)
+
+- [ ] Eurasian Whimbrel — *Numenius phaeopus*
+- [ ] Hudsonian Whimbrel — *Numenius hudsonicus*
+- [ ] Little Stint — *Calidris minuta*
+
+### Gulls, Terns, and Skimmers (8)
+
+- [ ] American Herring Gull — *Larus smithsonianus*
+- [ ] Black-tailed Gull — *Larus crassirostris*
+- [ ] Blue-billed White-Tern — *Gygis candida*
+- [ ] European Herring Gull — *Larus argentatus*
+- [ ] Gray Gull — *Leucophaeus modestus*
+- [ ] Kelp Gull — *Larus dominicanus*
+- [ ] Large-billed Tern — *Phaetusa simplex*
+- [ ] Vega Gull — *Larus vegae*
+
+## Birds of Prey (7)
+
+### Hawks, Eagles, and Kites (3)
+
+- [ ] Hawaiian Hawk — *Buteo solitarius*
+- [ ] Roadside Hawk — *Rupornis magnirostris*
+- [ ] Steller's Sea-Eagle — *Haliaeetus pelagicus*
+
+### Barn-Owls (1)
+
+- [ ] Western Barn Owl — *Tyto alba*
+
+### Owls (1)
+
+- [ ] Mottled Owl — *Strix virgata*
+
+### Falcons and Caracaras (2)
+
+- [ ] Bat Falcon — *Falco rufigularis*
+- [ ] Yellow-headed Caracara — *Daptrius chimachima*
+
+## Gamebirds (7)
+
+### Guineafowl (1)
+
+- [ ] Helmeted Guineafowl — *Numida meleagris*
+
+### Pheasants, Grouse, and Allies (6)
+
+- [ ] Erckel's Spurfowl — *Pternistis erckelii*
+- [ ] Gray Francolin — *Ortygornis pondicerianus*
+- [ ] Indian Peafowl — *Pavo cristatus*
+- [ ] Japanese Quail — *Coturnix japonica*
+- [ ] Kalij Pheasant — *Lophura leucomelanos*
+- [ ] Red Junglefowl — *Gallus gallus*
+
+## Doves, Cuckoos & Swifts (1)
+
+### Pigeons and Doves (1)
+
+- [ ] Zebra Dove — *Geopelia striata*
+
+## Kingfishers & Parrots (15)
+
+### Trogons (1)
+
+- [ ] Coppery-tailed Trogon — *Trogon ambiguus*
+
+### Cockatoos (1)
+
+- [ ] Cockatiel — *Nymphicus hollandicus*
+
+### Old World Parrots (2)
+
+- [ ] Budgerigar — *Melopsittacus undulatus*
+- [ ] Rose-ringed Parakeet — *Psittacula krameri*
+
+### New World and African Parrots (11)
+
+- [ ] Blue-and-yellow Macaw — *Ara ararauna*
+- [ ] Blue-crowned Parakeet — *Thectocercus acuticaudatus*
+- [ ] Burrowing Parakeet — *Cyanoliseus patagonus*
+- [ ] Chestnut-fronted Macaw — *Ara severus*
+- [ ] Lilac-crowned Amazon — *Amazona finschi*
+- [ ] Orange-winged Amazon — *Amazona amazonica*
+- [ ] Red-crowned Amazon — *Amazona viridigenalis*
+- [ ] Red-lored Amazon — *Amazona autumnalis*
+- [ ] White-eyed Parakeet — *Psittacara leucophthalmus*
+- [ ] White-fronted Amazon — *Amazona albifrons*
+- [ ] Yellow-headed Amazon — *Amazona oratrix*
+
+## Flycatchers, Vireos, Jays & Crows (12)
+
+### Tityras and Allies (1)
+
+- [ ] Gray-collared Becard — *Pachyramphus major*
+
+### Tyrant Flycatchers (4)
+
+- [ ] Cattle Tyrant — *Machetornis rixosa*
+- [ ] Social Flycatcher — *Myiozetetes similis*
+- [ ] Tufted Flycatcher — *Mitrephanes phaeocercus*
+- [ ] Variegated Flycatcher — *Empidonomus varius*
+
+### Vireos, Shrike-Babblers, and Erpornis (2)
+
+- [ ] Eastern Warbling Vireo — *Vireo gilvus*
+- [ ] Western Warbling Vireo — *Vireo swainsoni*
+
+### Monarch Flycatchers (3)
+
+- [ ] Hawaii Elepaio — *Chasiempis sandwichensis*
+- [ ] Kauai Elepaio — *Chasiempis sclateri*
+- [ ] Oahu Elepaio — *Chasiempis ibidis*
+
+### Crows, Jays, and Magpies (2)
+
+- [ ] Black-throated Magpie-Jay — *Cyanocorax colliei*
+- [ ] Brown Jay — *Cyanocorax morio*
+
+## Warblers, Sparrows & Finches (31)
+
+### Finches, Euphonias, and Allies (11)
+
+- [ ] Akiapolaau — *Hemignathus wilsoni*
+- [ ] Apapane — *Himatione sanguinea*
+- [ ] European Goldfinch — *Carduelis carduelis*
+- [ ] Hawaii Akepa — *Loxops coccineus*
+- [ ] Hawaii Amakihi — *Chlorodrepanis virens*
+- [ ] Hawaii Creeper — *Loxops mana*
+- [ ] Iiwi — *Drepanis coccinea*
+- [ ] Maui Alauahio — *Paroreomyza montana*
+- [ ] Oahu Amakihi — *Chlorodrepanis flava*
+- [ ] Palila — *Loxioides bailleui*
+- [ ] Yellow-fronted Canary — *Crithagra mozambica*
+
+### Troupials and Allies (1)
+
+- [ ] Streak-backed Oriole — *Icterus pustulatus*
+
+### New World Warblers (5)
+
+- [ ] Fan-tailed Warbler — *Euthlypis lachrymosa*
+- [ ] Golden-crowned Warbler — *Basileuterus culicivorus*
+- [ ] Mangrove Yellow Warbler — *Setophaga petechia*
+- [ ] Northern Yellow Warbler — *Setophaga aestiva*
+- [ ] Slate-throated Redstart — *Myioborus miniatus*
+
+### Cardinals and Allies (2)
+
+- [ ] Blue Bunting — *Cyanocompsa parellina*
+- [ ] Crimson-collared Grosbeak — *Periporphyrus celaeno*
+
+### Tanagers and Allies (3)
+
+- [ ] Red-crested Cardinal — *Paroaria coronata*
+- [ ] Saffron Finch — *Sicalis flaveola*
+- [ ] Yellow-billed Cardinal — *Paroaria capitata*
+
+### Weavers and Allies (1)
+
+- [ ] Northern Red Bishop — *Euplectes franciscanus*
+
+### Waxbills and Allies (7)
+
+- [ ] African Silverbill — *Euodice cantans*
+- [ ] Chestnut Munia — *Lonchura atricapilla*
+- [ ] Common Waxbill — *Estrilda astrild*
+- [ ] Java Sparrow — *Padda oryzivora*
+- [ ] Orange-cheeked Waxbill — *Estrilda melpoda*
+- [ ] Red Avadavat — *Amandava amandava*
+- [ ] Zebra Finch — *Taeniopygia guttata*
+
+### Whydahs and Indigobirds (1)
+
+- [ ] Pin-tailed Whydah — *Vidua macroura*
+
+## Other Songbirds (11)
+
+### Bulbuls (1)
+
+- [ ] Red-vented Bulbul — *Pycnonotus cafer*
+
+### Bush Warblers and Allies (1)
+
+- [ ] Japanese Bush Warbler — *Horornis diphone*
+
+### White-eyes, Yuhinas, and Allies (2)
+
+- [ ] Swinhoe's White-eye — *Zosterops simplex*
+- [ ] Warbling White-eye — *Zosterops japonicus*
+
+### Laughingthrushes and Allies (2)
+
+- [ ] Chinese Hwamei — *Garrulax canorus*
+- [ ] Red-billed Leiothrix — *Leiothrix lutea*
+
+### Mockingbirds and Thrashers (1)
+
+- [ ] Bahama Mockingbird — *Mimus gundlachii*
+
+### Thrushes and Allies (1)
+
+- [ ] Omao — *Myadestes obscurus*
+
+### Old World Flycatchers (3)
+
+- [ ] Red-flanked Bluetail — *Tarsiger cyanurus*
+- [ ] Taiga Flycatcher — *Ficedula albicilla*
+- [ ] White-rumped Shama — *Copsychus malabaricus*
+
